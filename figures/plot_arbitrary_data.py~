@@ -1,0 +1,113 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import re
+from sys import argv
+from pylab import *
+
+def main(f_name=None, x_coords=None, x_col=-1,y_col=None,y2_col=-5):
+    
+    external_call = True
+    no_x = False
+    if f_name == None:
+        external_call = False
+        f_name = "data"
+
+    infile = open(f_name, 'r')
+
+    if x_coords == None and x_col == -1:
+        no_x = True
+        x_coords = np.linspace(0.005,0.995,num=100)
+    new_data = True
+
+    #find all data
+    data = []
+    for line in infile:
+   
+        if re.search("\s*\d+\.\d+", line):
+            if new_data == True:
+                data = [[] for i in range(len(line.split()))]
+                new_data = False
+            for i in range(len(line.split())):
+                data[i].append(float(line.split()[i]))
+                
+    #interactively plot two vectors
+    counter = 0
+    plt.ion()
+    
+
+    if x_col == None:
+        x_col = int(raw_input("""Enter x column between %i and %i, or 0 to use default x coors: """%(1,len(data))))-1
+    if y_col == None:
+        y_col = int(raw_input("""Enter y column between %i and %i: """ % (1,len(data))))-1
+    else:
+        y_col -=1
+    if y2_col == None:
+        y2_col = int(raw_input("""Enter second y column, or - to plot: """))-1
+
+    if x_col < 0 or x_col >=len(data):
+        x = x_coords
+    else:
+        x = data[x_col-1]
+
+    if y_col < -1:
+        exit()
+    y = data[y_col]
+
+    #reset x_coords
+    if not len(x) == len(y):
+        if len(x) == len(2*y):
+            print "Converting"
+            #x is for edges, but we want centers
+            new_x = []
+            for i in range(0,len(x),2):
+                val = 0.5*(x[i]+x[i+1])
+                new_x.append(val)
+            x = new_x
+        else:
+            h = (x[-1]-x[0])/len(y)
+            if (x[1]==x[2]): #LD 
+                new_x = np.linspace(x[0]+0.5*h,x[-1]-0.5*h,num=len(y))
+            else: #they gave u averages need to find end points
+                x_start = x[0] - (x[1]-x[0])*0.5
+                x_end = x[-1] + (x[-1]-x[-2])*0.5
+                h = (x_end - x_start)/len(y)
+                new_x = np.linspace(x_start+0.5*h,x_end-0.5*h,num=len(y))
+            print "Readjusted"
+            x= new_x
+
+
+    #Changable stuff like axis labels:
+    #plt.plot(x, y, "-r", label="$T_r$ IMC")
+
+    if y2_col > 0:
+        y2 = data[y2_col]
+      #  plt.plot(x, y2, "-r", label="Radiation Temp", linewidth=1.0)
+    else:
+        y2 = None
+
+
+    #if called from other file dont turn on stuff
+    if not external_call:
+        plt.xlabel('$x$ (cm)')
+        plt.ylabel('$T$ (keV)')
+        plt.axis([min(x), max(x)*1.001,
+            min(min(y),-0.001), max(y)*1.05])
+
+        plt.legend(loc='upper right')
+        plt.grid()
+        plt.show()
+    print x
+
+    if no_x:
+        x=None
+    
+    if y2 == None:
+        print x
+        return x,y
+    else:
+        return x,y,y2
+
+if __name__ == "__main__":
+    main()
+
+

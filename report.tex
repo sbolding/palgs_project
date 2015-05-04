@@ -121,15 +121,18 @@ In general, domain copy is a much simpler and efficient parallelization strategy
 very large problems, or in methods that require additional information to be stored
 or communicated more often, it can become unfeasible due to memory and communication
 restraints.  In particular, the full solution method the research code the algorithms
-were implemented in fits into this category.y research code uses fits in to
+were implemented in fits into this category. My research code uses fits in to
 this case. That is why it is of interest for me to explore and understand the basics
 of the domain decomposition strategy, which does not require tallied information to
 be communicated at the end of simulations, but does require more communication during
 the simulation.
 
+
+The algorithms used in this work are described in detail.  Approximate, expected theoretical
+complexities are given and verified.
 Multiple experiments
 were performed, and the results were analyzed to compare the performance of the
-algorithms as a function of the number of parallel processors used.  Coefficients for the theoretical asymptotic time complexity were
+algorithms as a function of the number of parallel processors used,  Coefficients for the theoretical asymptotic time complexity were
 determined were applicable. Both strong and weak scaling studies were performed as well, and speed up
 studied as a function of the number of histories performed. The algorithms are benchmarked
 against the original sequential algorithm. As expected, the domain copy algorithm was
@@ -272,12 +275,12 @@ performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing stra
     \textbf{Input:} $N$ histories, $p$ processors, mesh, source distribution
     \vspace{-0.1in}
     \begin{enumerate}
-    \item \textbf{For each} processor
+        \item \textbf{For each} processor $j$ \textbf{pardo}
     \begin{enumerate} 
     \item Initialize my copy of the mesh
     \item Compute source strength in each $x$-$\mu$ cell $i$
 
-    \item \textbf{For} {$N$ histories} \textbf{do}:
+    \item \textbf{For} {$N/p$ histories} \textbf{do}:
         \begin{enumerate}
        \item Source random $x$ and $\mu$ from the specified source distribution
     \item Sample how far the particle travels $x_0$ from the distribution $p(x_0) =
@@ -301,9 +304,112 @@ performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing stra
 
 \subsection{Domain Decomposition Algorithm}
 
-In the decomposed case, each processor owns a portion of the space-angle mesh.  A
+In the decomposed case, each processor owns a portion of the space-angle mesh. A
 uniform decomposition is performed based on spatial mesh. Thus each processor owns
-all of the angular cells, for some particular region of space $x$.
+all of the angular cells, for some particular region of space $\{x:x_l<x<x_r\}$, where
+$x_l$ is the left edge of the region and $x_r$ is the right edge of the region. he
+processors are organized in a linear array.   The mesh is
+divided so that boundaries of processor domains correspond with spatial element
+boundaries.  To simplify implementation, each processor has a copy of the entire
+spatial mesh but is only allowed to track over a certain set of spatial elements.
+Since the mesh is 1D, this straight forward.  
+
+During tracking of the history, if a particle leaves the domain of that history, it
+is stored in the appropriate ``bank'' (there is one each for particles leaving left
+and right).  The bank is implemented as a growable vector of objects.  These banks are then communicated to the appropriate adjacent processor as
+necessary.  
+Bank contains particle structures that are transfered using \verb\MPI_Type_struct\
+types. Each banked structure contains all of the necessary information to continue tracking the
+particle as if it had been on one processor (with the exception of a different set of
+random numbers). 
+
+For simplicity, the most naive approach to communicating banked particles is
+performed.  Each processor runs their initial batch of source particles, banking
+particles that have left the domain as necessary.  Then, all processors send their
+banked particles to their left and right neighbors as appropriate. Each processor
+then tracks all of the received particles from their neighbors, including banking as
+necessary.  The process of communicating banks and simulating the recieved particles
+is repeated until all particles have been absorbed or leaked from the system.  The
+processors must synchronize at each step to ensure they recieve the bank of particles
+before new ones are added.  This communication approach can become very expensive and
+inefficent in problems where particles are likely to stream across the entire
+problem, as some processors will be idle for long periods of time in intermediate
+steps, even though there is work they could be doing. 
+
+Once all particles have terminated, $\phi(x)$ is computed locally on each processor.
+There is no need to reduce the solution as all histories that have contributed to
+that portion of the domain were simulated by that particular processor.  In
+implementation, a communication step is performed to verify correct output, but this
+is not included in timing results. The overall algorithm is
+outlined in Alg.~\ref{alg:dec}.
+
+\begin{figure}[hb!]
+    \centering
+    \def\svgwidth{0.9\textwidth}
+    \input{drawing/procs.pdf_tex}
+    \caption{Illustration of domain copy (left) and domain decomposition (right)
+        strategies on two processors. \label{hawt}}
+    \end{figure}
+\begin{algorithm}
+    \caption{MPI domain decomposition algorithm.\label{alg:dec}}
+    \vspace{0.06in}
+    \textbf{Input:} $N$ histories, $p$ processors, mesh, source distribution
+    \vspace{-0.1in}
+    \begin{enumerate}
+    \item \textbf{For each} processor $j$ \textbf{pardo}
+    \begin{enumerate} 
+    \item Initialize portion of the mesh for $P_j$
+    \item Compute number of histories $N_j$ in all $x$-$\mu$ cell belonging to $P_j$
+    \item \textbf{For} {$N_j$ histories} \textbf{do}:
+        \begin{enumerate}
+       \item Source random $x$ and $\mu$ from the specified source distribution
+       \item \label{itm:start} Sample how far the particle travels $x_0$ from the distribution $p(x_0) =
+        \sigma e^{-\sigma x_0}$.
+    \item Track particle to location of interaction or processor boundary:
+        \begin{itemize}
+            \item Tally the contribution to $\psi_i(x,\mu)$, the
+                linear angular flux representation with each space-angle cell $i$
+                that the history traverses
+        \end{itemize}
+    \item \textbf{IF} particle exited $P_j$'s domain:
+        \begin{itemize}
+            \item Bank particle in right or left bank
+            \item \textbf{continue}
+        \end{itemize}
+    \item \textbf{Else:} \label{itm:end} terminate history /* Leakage or absorption */
+\end{enumerate}
+\end{enumerate}
+    \item local var: $alldone$ := false, $done$ := false, $mylists$
+    \item \textbf{While} not $alldone$
+    \begin{enumerate}
+       \item \textbf{IF} size(rightbank) $> 0$:
+         \begin{itemize}
+            \item Inform $P_{j+1}$ bank size to receive
+            \item Send(rightbank, destination=$P_{j+1}$)
+         \end{itemize}
+       \item \textbf{IF} size(leftbank) $> 0$:
+         \begin{itemize}
+             \item Inform $P_{j-1}$ bank size to receive
+            \item Send(leftbank, destination=$P_{j-1}$)
+         \end{itemize}
+       \item \textbf{IF} recieving banks: 
+         \begin{itemize}
+              \item Recieve banks into one list of particles $\rightarrow mylist$
+          \end{itemize}
+      \item Synchronization among processors /* Ensure all banks have been received */
+      \item \textbf{For each} particle in $mylist$
+          \begin{itemize}
+              \item Execute steps \ref{itm:start} to \ref{itm:end} on particle
+          \end{itemize}
+     \item \textbf{IF} (size(rightbank) = 0 \& size(leftbank) = 0) done := true
+     \item Compute logical OR using \verb{MPI_Reduce{ on $done$'s, stored in $alldone$
+    \end{enumerate}
+    \item[] \textbf{end While} /* If all banks are empty, then we are done */
+    \item \textbf{For each of $P_j$'s cells:} average contribution of $N$ histories to all tallies
+    \item Compute $\phi(x)$ for all cells in $P_j$'s domain
+\end{enumerate}
+/* Each processor now knows $\phi(x)$ for its domain */
+\end{algorithm}
 
 \section{Experimental Setup}
 
@@ -324,18 +430,57 @@ with longer access times when a core accesses the DRAM that is located near the 
 chip on that node. More details about the architecture of \emph{eos} can be found
 at \url{http://sc.tamu.edu/systems/eos/}
 
+\subsection{Problem Descriptions}
+    
+To investigate the effect of the problem type, all experiments are performed for two
+different types of problems. There is a wide variety of the input space that could
+happen, but these two problems are chosen to expose potential weaknesses of the
+domain decomposition algorithm.  Both problems have a source (including scattering
+source) defined to produce a uniform distribution of particles throughout the domain. 
+The problems will be referred to herein as the optically ``thick'' and optically
+``thin'' problem.  
+
+The optical thickness is of particular relevance due to the
+probability of particles born on one end of the problem reaching the opposite in.
+The \emph{more} optically thick the problem, the \emph{less} likely a particle will traverse the
+entire problem. In general, thicker problems require less tracking across the mesh,
+resulting in shorter run times.  For the case of domain copy, this has minimal effect
+on timing results.  However, for domain decomposition this has a significant effect.
+The very thin problem is chosen so that the majority of histories will traverse the
+entire problem.  This means that approximately $p$ communication steps, of very
+large banks, must be performed.  It is expected that this will demonstrate the worst case
+scenario for the domain decomposition algorithm, relative to the domain copy
+algorithm.  The optically thick problem is chosen so that, on average, only 1
+communication step will occur, of a relatively small size.  More communication steps
+may happen, but they will involve very few particles.  There will always be at least 1
+step required due to the fact that some particles will be born right next to a
+processor boundary.  The specifics of the two problems are defined below:  
+\begin{itemize}
+    \item \textbf{Optically thin:}  The total domain has width $T = 4.51 cm$
+        and total removal cross section $\sigma = 0.02$. The probability a
+        history traverses the entire domain before interacting (crossing all processors) is
+        $e^{-\sigma T} = 90 \%$.
+     \item \textbf{Optically thick:} The total domain has width $T = 100 cm$ and
+         total removal cross section $\sigma = 6$. In the worst case of a 128
+         processor decomposition, the probability a particle crosses more than 1
+         processor is $e^{-\sigma T/128} < 1 \%$
+\end{itemize}
+
+
+
+
 \subsection{Description of Experiments}
 
-Several experiments were performed to gauge the performance and scalability of Alg.~\ref{alg:mpi}
-and~\ref{alg:openmp}. The experiments are discussed individually below. Batch files to run the
+Several experiments were performed to gauge the performance and scalability of the
+two algorithms. The experiments are discussed individually below. Batch files to run the
 various jobs were created using a Python script.  Output files were processed with a
-Python script as well.  Example scripts can be found in the submitted tar ball.  It
-is noted that the measured simulation times for the experiments times only account for the prefix sum
-computations; they exclude any extra input, output, or initialization timing costs.
-Timing information was performed using built in C functions, such as
-\verb{gettimeofday{. We only sample two different problems, but really there is much
-    more of the phase space could be sampeled, but this is representative of the two
-    approaches.
+Python script as well.  The
+portions of code run times that is included for results of each algorithm are
+justfied and detailed in the sections describing each algorithm; they exclude any
+extra input, output, or initialization timing costs and only measure the cost of the
+Monte Carlo solver. Timing information was performed using built in C functions, such as
+\verb{gettimeofday{.
+    
 
 \subsubsection{Strong Scaling Study} 
 
@@ -451,16 +596,19 @@ Gaussian distribution of the error, is plotted as $1.96 \sigma$.
 
 \section{Experimental Results and Analysis.}
 
-Below are given results and discussion for each of the experiments.
+Below are given results and discussion for each of the experiments.  For the strong
+and weak scaling studies, the simulations use a mesh of $248$ $x$ cells $\times$ $6$
+$\mu$ cells.  This mesh is chosen to have the tracking time of
+particles to be representative of a realistic problem, while still having simulation
+times that a single core can reasonably achieve. Also, this allows for the $128$ processor simulation to have at least one
+mesh cell per processor.  For the last two studies, a smaller mesh of $100 x$ cells
+$\times$ $6$ $\mu$ cells was used to limit simulation times because the scaling studies are only performed out
+to 16 processors. 
 
-\subsection{Strong Scaling Study (speed up)}
+\subsection{Strong Scaling Study}
 
-
-
-
-
-The results for the speed up study for the OpenMP algorithm is given in
-Fig.~\ref{ompsu}. As demonstrated, the algorithm does not demonstrate ideal speedup
+The results for the speed up study for the optically thin and thick problem are given
+in Fig.~\ref{thinsu} and Fig.~\ref{thicksu}. As demonstrated, the algorithm does not demonstrate ideal speedup
 (as expected), but is able to solve the
 problem increasingly faster as the number of threads used is increased.  Some rough timing estimates indicate
 that the $O(p)$ calculation in the OpenMP algorithm is $<0.1$ \% of the total runtime
@@ -478,45 +626,41 @@ the speedup, in particular going from 4 to 8 threads, which previously showed a 
 in speedup.  This drop was the result of processors having to go off chip to access their
 portion of the array in RAM.  
 
-\subsubsection{MPI}
 
-The speedup results for the MPI algorithm are given in Fig.~\ref{spd1}. A more
-legible plot for the cases of $p\leq16$ is given in Fig.~\ref{mpizoomsu}.  The MPI
-algorithm demonstrated slightly better speed up at equivalent core counts than the OpenMP
-algorithm.  It is noted there is an irregular drop from 4 to 8 cores in the MPI speed
-up plot.  This is likely due to the fact that 4 cores will be on 1 chip, whereas for 8
-cores some of the RAM will be off chip, as discussed in the previous section and
-machine specifications, leading to a decrease in expected efficiency gain.
 
-The program continued to scale out to 128 and 256 cores, although at a
-reduced rate of increase at higher core counts.  The rate of increase drops off at higher core counts due to the
-increased cost of the communication in the $O(\log p)$ communication step, relative
-to the $O(n/p)$ prefix sum steps by each processor.  There was much greater variance at 128 and 256 cores, due to much more
-off node communication time, leading to some difficulty in determining how well the
-speedup is increased at the high core counts. 
 
-It is noted that although the MPI algorithm has the same theoretical time complexity as a linear array approach, there
-is less communication steps ($O(\log p)$ versus $O(p)$ communications), which leads to overall a significantly more efficient algorithm as
-the cost of the communication steps becomes the limiting factor at higher
-MPI rank counts.  A linear array approach was also tested and found to not scale
-past 64 cores due to the increased cost of communication.  This demonstrates an
-inaccuracy in our model, which is expected because it doesn't account for
-communication overhead.  Alg.~\ref{alg:mpi} has similar communication cost to a tree-traversal
-based algorithm.
+
+
+
+
 
      \begin{figure}[htbp!]
          \begin{subfigure}{0.5\textwidth}
          \centering
-           \includegraphics[width=1.0\textwidth]{speedup_thin.pdf}
+           \includegraphics[width=1.08\textwidth]{speedup_thick.pdf}
            \caption{Strong scaling to 128 processors.}
      \end{subfigure}
      \begin{subfigure}{0.5\textwidth}
          \centering
-           \includegraphics[width=1.075\textwidth]{speedup_zoom_thin.pdf}
+           \includegraphics[width=1.08\textwidth]{speedup_zoom_thick.pdf}
            \caption{Zoomed view}
      \end{subfigure}
-           \caption{Plot of speedup versus number of proocessors $p$ for $N=5\times
-               10^6$ histories.\label{spd1}}
+     \caption{For the optically \emph{thick} problem, a plot of speedup versus number of processors $p$ for $N=5\times
+               10^6$ histories.\label{thicksu}}
+ \end{figure}
+     \begin{figure}[htbp!]
+         \begin{subfigure}{0.5\textwidth}
+         \centering
+           \includegraphics[width=1.08\textwidth]{speedup_thin.pdf}
+           \caption{Strong scaling to 128 processors.}
+     \end{subfigure}
+     \begin{subfigure}{0.5\textwidth}
+         \centering
+           \includegraphics[width=1.08\textwidth]{speedup_zoom_thin.pdf}
+           \caption{Zoomed view}
+     \end{subfigure}
+           \caption{For the optically thin problem, a plot of speedup versus number of processors $p$ for $N=5\times
+               10^6$ histories.\label{thicksu}}
  \end{figure}
 
 \clearpage
