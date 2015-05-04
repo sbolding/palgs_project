@@ -42,7 +42,8 @@
 \usepackage[margin=1in]{geometry} 
 \usepackage{amsmath,amsthm,amssymb}
 \usepackage{verbatim}
-\usepackage{algpseudocode,algorithm}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
 \usepackage{setspace}
 
 \newcommand{\lline}{\noindent\makebox[\linewidth]{\rule{\textwidth}{0.4pt}}}
@@ -159,19 +160,30 @@ The solution of interest is the steady-state
 distribution of particles in the system. This distribution is represented by
 a cell-wise linear representation, in space and angle, of the particle density
 referred to as the
-\textbf{angular flux} $\psi(x,\mu)$. The final result that is typically of interest
+\textbf{angular flux} $\psi(x,\mu)$. Each cell $i$ has a linear representation denoted as
+$\psi_i(x,\mu)$.  The union of all cells, with a proper
+spatial closure, results in a piece-wise continous representation of the solution.  The final result that is typically of interest
 is an angular integrated particle density, referred to as the \textbf{scalar flux} 
-$\phi(x)$. 
-This scalar flux also has a linear shape within a cell that must be computed.  The
+$\phi(x)$. Tallies are used to estimate the representation of $\psi_i(x,\mu)$ in
+each cell.  These tallies estimate the zeroth and first moment, in space and angle,
+of $\psi(x,\mu)$ based on the density of particle pathlengths that traverse that cell
+over the entire simulation.
+
+To solve a problem, the
 scalar flux is determined based on an input source distribution of particles that is represented
 over the mesh by a linear distribution (in space and angle) over each element.  To determine
-the scalar flux, the following basic
-process is performed:
-\begin{enumerate}
-    \item For $N$ histories:
+the scalar flux, the basic process defined in 
+Alg.~\ref{alg:serial} is performed.  
+\begin{algorithm}
+    \caption{\label{alg:serial}Serial algorithm for simulating Monte Carlo historie}
+    \vspace{0.06in}
+    \textbf{Input:} $N$ histories, mesh, source distribution
+    \vspace{-0.1in}
+    \begin{enumerate}
+    \item Compute source strength in each $x$-$\mu$ cell $i$
+    \item \textbf{For} {$N$ histories} \textbf{do}:
         \begin{enumerate}
-    \item Source a random particle history from the specified source distribution: a
-        location $x$ and angle $\mu$.
+       \item Source random $x$ and $\mu$ from the specified source distribution
     \item Sample how far the particle travels $x_0$ from the distribution $p(x_0) =
         \sigma e^{-\sigma x_0}$.
     \item Track particle to location of interaction:
@@ -181,10 +193,14 @@ process is performed:
                 that the history traverses
         \end{itemize}
     \item Terminate particle history
-            \end{enumerate}
-    \item For each cell, average contribution of all histories to tallies
+\end{enumerate}
+    \item \textbf{For each cell:} average contribution of $N$ histories to all tallies
     \item Compute $\phi(x)$ by integrating $\psi(x,\mu)$ over $\mu$
 \end{enumerate}
+\vspace{-0.1in}
+     \textbf{return} $\phi(x)$
+\end{algorithm}
+
 It is noted that the reason particles do not have to scatter is that a deterministic
 solver provides a representation of scattering events as a term included in the
 source distribution.  This determinstic solve
@@ -195,27 +211,16 @@ performed before the Monte Carlo solve ever begins.
 
 \subsection{Sequential Algorithm}
 
-The sequential algorithm is defined by the process given in the previous section.  The algorithm is stated
-here formally for comparison to the parallel algorithms
-\begin{algorithm}
-\begin{algorithmic}
-    \caption{Serial prefix sum algorithm\label{alg:1}}
-\setstretch{1.1}
-\Procedure {PrefixSumSerial}{$A,B$} \Comment{Assumes len($A$)=len($B$)=$n$}
-    \State variables: $i$, $n$
-    \State $n$ = len($A$)
-    \State $B(0)$ := $A(0)$ \Comment{Initialize prefix sum}
-    \For{$i=1$ to $n-1$}
-        \SS B(i) := A(i)+B(i-1)
-    \EndFor
-    \Comment{$B$ now contains the prefix sum of $A$}
-\EndProcedure
-\end{algorithmic}
+The sequential algorithm is defined by Alg.~\ref{alg:serial}.  Tracking particle
+histories from birth to death is an expensive process and the dominating term in run
+times.  Thus, the complexity for running time is expected to be $O(N
+T_j)$, where $T_j$ is the average time to simulate a single history $j$.  $T_j$ is
+also a function of the problem size and parameters, but is, on average, a constant for a
+particular problem.  Thus, $T(N) = O(N)$, for a particular problem.
 
+\subsection{Domain Copy Algorithm}
 
-\subsection{Description of Domain Copy and Decomposition Algorithms}
-
-There are two basic approaches to simulating the above problem in parallel: domain
+There are two standard approaches to parallelizing Alg.~\ref{alg:serial}: domain
 copy and decomposition.   A diagram of the two approaches can
 be seen in Fig.~\ref{hawt}.  The first approach
 is domain copy, in which each processor gets a copy of the entire physical mesh,
@@ -231,150 +236,74 @@ points for each spatial cell to be communicated.  for each processor are
 combined at the end of the simulation using an all-reduce strategy.  On average, each processors ($N/p$)
 simulations take the same time as the particle histories are samples of the same
 underlying distributions, limiting
-asynchronization of processors.  
-    \begin{figure}
+asynchronization of processors.  The domain copy algorithm is given in
+Alg.~\ref{alg:copy}.
+
+The representation of $\phi(x)$ is stored as a vector of spatial degrees of freedom
+per element. An \verb{MPI_Allreduce{ is performed to compute the sum of all results
+    from each processor and then copy the result to each of the processors. The sum must be divided by $p$ to produce the correct
+    average.  Since each processor's $N/p$ histories were independent, this is equivalent to
+    running $N$ histories with a single processor.  The broadcasting of the result to
+    all processors is done because in a real simulation each processor would need to
+    know the scalar flux for the next portion of the algorithm.  
+
+As discussed for the serial algorithm, the dominating term in the simulation run time is
+performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing strategy
+    which will be $O(\log n_x)$, where $n_x$ is the number of cells in the problem.
+    This communication term is relatively small and a constant for a particular
+    problem size. Thus $T(N) = O(N/p + \log n_x) = O(N/p)$.   At very large $p$ or a low number of $N$, this term could become
+    more significant, but for realistic values of $N$ ($O(10^6)$), it is small. All processors are
+    tracking particles for all histories for, on average, the same amount of time.
+    Thus, $W(N) = O(N/p*p) = O(N)$, which is work optimal. It is noted that because
+    $T_j$ is a function of problem size, there is no way to easily measure or study
+    the size of $\log n_x$ with scaling studies.
+
+
+\begin{figure}[hb!]
     \centering
     \def\svgwidth{0.9\textwidth}
     \input{drawing/procs.pdf_tex}
     \caption{Illustration of domain copy (left) and domain decomposition (right)
         strategies on two processors. \label{hawt}}
     \end{figure}
-
-\subsection{Theoretical Analysis}
-
-\subsubsection{Sequential Algorithm}
-
-The dominating term in th
-
-\subsection{MPI Algorithm}
-
-The algorithm for the MPI implementation is given in Alg.~\ref{alg:mpi}. This
-algorithm uses the standard approach from the previous homework of computing local
-prefix sums, followed by a global prefix sum on the last element in each local array,
-before adding the sum of previous processors to each element. 
-
-The algorithm assumes that the input elements and output prefix elements are
-distributed across $p$ processors.  Thus, for $p$ processors and $n$ integers, each
-processor contains $m\approx n/p$ elements.  If $n/p$ is not an integer, then the remaining
-elements are distributed, one per processor, amongst the first $n\mod p$ processors.  Each processor
-computes the prefix sum of its $m$ elements, an order $O(n/p)$ operation.  Using \verb{MPI_Allgather{, a copy of the last
-    element in each processor's prefix sum array (representing the sum of all
-    elements on each processor) is copied to \emph{all} processors.  Thus, each processor
-    now contains an array $C$ of size $p$, with the $i$-th element containing the sum of the
-    elements on the $i$-th processor.  The prefix sum of $C$ is computed by each
-    processor, an $O(p)$ operation.  Finally, each processor adds the sum of integers from all previous processors to
-    its local prefix sum array as necessary.
-    
-    For time and work complexity, the initial prefix sums and final value additions
-    require $O(n/p)$ time and $O(n)$ work. To perform the global prefix sum, the
-\verb{MPI_Allgather{ command was utilized to copy the processor sums to each
-    processor. Although $p$ numbers must be communicated, by combining messages in a
-    tree-reduction, this command only requires the large communication overhead of
-    $O(\log p)$ messages. Thus, as far as asymptotic complexity, this process
-    represents an $O(\log p)$ communication time, with $p \log p$ work.  The serial prefix sum of each
-    processors array is computed only up to that processor, but this is bounded from
-    above by $O(p)$ time and $O(p^2)$ work.  Thus, in total,
-    $T(n)=O(n/p+p+log(p))\simeq O(n/p+p)$
-    and $W(n)=O(n+p^2+p\log p) \simeq O(n+p^2)$.  It is noted that for the case of the
-    experiments performed in this work,
-    $n\gg p$, and the $O(p)$ terms become negligible.
-    We have verified this
-algorithm works in previous homework.
-
-
 \begin{algorithm}
-\begin{algorithmic}
-    \caption{MPI prefix sum algorithm\label{alg:mpi}}
-\setstretch{1.1}
-\Procedure {PrefixSumMPI}{$A$} \Comment{Assumes len($A$)=$n$}
-    \State \Comment{Assume $A$ and $B$ distributed evenly on processors, $\approx n/p$ to each processor}
-    \State Local variables: $id$, $p$, $m$ \Comment{MPI Rank, number of processors,
-    my size}
-    \State Local variables: $C,D$ \Comment{Arrays of size $p$ for parallel prefix sum}
-    \State $id$ := get\_my\_id() \Comment{Procs. numbered $0,1,\ldots,n-1$}
-    \State $m$ := $\lfloor n/p \rfloor$ \Comment{Determine size on each processor}
-    \If{$id < n \mod p$}
-    \State $m$ :=  $m+1$
-    \EndIf
-    \State Local variables: $myints$ \Comment{this procs' $m$ input values of $A$}
-    \State Local variables: $mypsums$ \Comment{this procs' $m$ prefix sum values of $B$}
-    \If{ len($A$) = 1}
-        \SS $B(0)$ := $A(0)$
-        \SS \textbf{return}
-    \Else
-        \SS PrefixSumSerial($myints$,$mypsums$)
-    \EndIf
-    \State MPI\_Allgather($mypsums(m-1)$,$C$) \Comment{$C$ now contains copy of sum
-        of elements for \emph{each} of $p$ processors}
-    \If{$id>0$}
-    $D(0) := C(0)$
-    \For{$i=0$ to $id-1$} \Comment{All Procs perform prefix sum on their local copy of $C$}
-        \State $D(i)$ := $D(i-1)$+$C(i)$
-    \EndFor
-        \For{$i=0$ to $m$}
-            \SS $mypsums(i)$ := $mypsums(i)$+$D(id-1)$
-        \EndFor
-    \EndIf \Comment{Collectively the $p$ arrays $mypsums$ contain prefix sum of $A$}
-\EndProcedure
-\end{algorithmic}
+    \caption{MPI domain copy algorithm.\label{alg:copy}}
+    \vspace{0.06in}
+    \textbf{Input:} $N$ histories, $p$ processors, mesh, source distribution
+    \vspace{-0.1in}
+    \begin{enumerate}
+    \item \textbf{For each} processor
+    \begin{enumerate} 
+    \item Initialize my copy of the mesh
+    \item Compute source strength in each $x$-$\mu$ cell $i$
+
+    \item \textbf{For} {$N$ histories} \textbf{do}:
+        \begin{enumerate}
+       \item Source random $x$ and $\mu$ from the specified source distribution
+    \item Sample how far the particle travels $x_0$ from the distribution $p(x_0) =
+        \sigma e^{-\sigma x_0}$.
+    \item Track particle to location of interaction:
+        \begin{itemize}
+            \item Tally the contribution to $\psi_i(x,\mu)$, the
+                linear angular flux representation with each space-angle cell $i$
+                that the history traverses
+        \end{itemize}
+    \item Terminate particle history
+\end{enumerate}
+    \item \textbf{For each cell:} average contribution of $N$ histories to all tallies
+    \item Compute $\phi(x)$ by integrating $\psi(x,\mu)$ over $\mu$
+\end{enumerate}
+    \item \verb{MPI_Allreduce{ with sum operation on $\phi(x)$ vector.
+\end{enumerate}
+/* Each processor now has a copy of $\phi(x)$ */
 \end{algorithm}
 
-\subsection{OpenMP Algorithm}
 
-The OpenMP algorithm is given in Alg.~\ref{alg:openmp}.  The OpenMP algorithm works similarly to the MPI algorithm above.  Each thread performs the
-local prefix sum on its portion of the input array, before a serial prefix sum is
-performed on the $p$ processor sums, stored in an additional array.  This step is performed
-with the simple serial algorithm by one processor.  This is done because for the
-shared memory experiments performed, $p\ll n$, and the memory overhead of using a more
-complicated algorithm would ultimately result in a less efficient algorithm and
-longer run times.  Finally, the sum of previous processor's values are added
-to each portion of the array in parallel, as necessary.  
+\subsection{Domain Decomposition Algorithm}
 
-For time complexity, the initial prefix sum and addition of values at the end are
-$O(n/p)$, with work complexity $O(n)$.  The prefix sum of the processor sums is
-$O(p)$ time, but, because there is shared memory access, this step can be performed
-by a single processor.  This results in $O(p)$ work.  In total, for this algorithm,
-$T(n)=O(n/p+p)$, where $p\ll n$, and Work is $O(n+p)$. We have verified this
-algorithm works in previous homework.
-
-\begin{algorithm}[t!]
-\begin{algorithmic}
-    \caption{OpenMP prefix sum algorithm\label{alg:openmp}}
-\setstretch{1.1}
-\Procedure {PrefixSumOpenMP}{$A$} \Comment{Assumes len($A$)=$n$}
-    \State \Comment{Assume $A$ and $B$ are in shared memory among $n$ processors}
-    \State Local variables: $id$, $p$, $m$ \Comment{MPI Rank, number of processors,
-    my size}
-    \State Local variables: $C,D$ \Comment{Arrays of size $p$ for parallel prefix sum}
-    \State $id$ := get\_my\_id() \Comment{Threads numbered $0,1,\ldots,n-1$}
-    \State Local variable: $mybeg$, $myend$ \Comment{Determine my portion of the array}
-    \State $m$ := $\lfloor n/p \rfloor$ \Comment{Initial size for each processor}
-    \State $r$ := $n \mod p$
-    \If{$id < r$} \Comment{Account for $n/p$ not an integer}
-        \State $mybeg$ := $(m+1)*id$
-        \State $myend$ := $mybeg\,+\,m$ 
-    \Else
-        \State $mybeg$ := $r*(m+1)+(id-r)*m$
-        \State $myend$ := $mybeg+(m-1)$
-    \EndIf
-    \If{ len($A$) = 1}
-        \SS $B(0)$ := $A(0)$
-        \SS \textbf{return}
-    \Else
-        \SS PrefixSumSerial($A(mybeg:myend)$, $B(mybeg:myend)$) \Comment{$myend$ is
-            inclusive}
-    \EndIf
-    \SS $C(id)$ := $B(myend)$ \Comment{Store sum of each thread's ints}
-    \If {$id$ = 0}
-    \SS PrefixSumSerial($C$,$D$) \Comment{$D$ contains prefix sums of each thread}
-    \Else
-     \For{$i=mybegin$ to $myend$}
-            \SS $B(i)$ := $B(i)$+$D(id-1)$
-        \EndFor
-    \EndIf \Comment{$B$ now contains the prefix sum of $A$}
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
+In the decomposed case, each processor owns a portion of the space-angle mesh.  A
+uniform decomposition is performed based on spatial mesh. Thus each processor owns
+all of the angular cells, for some particular region of space $x$.
 
 \section{Experimental Setup}
 
@@ -526,7 +455,9 @@ Below are given results and discussion for each of the experiments.
 
 \subsection{Strong Scaling Study (speed up)}
 
-\subsubsection{OpenMP}
+
+
+
 
 The results for the speed up study for the OpenMP algorithm is given in
 Fig.~\ref{ompsu}. As demonstrated, the algorithm does not demonstrate ideal speedup
@@ -549,7 +480,7 @@ portion of the array in RAM.
 
 \subsubsection{MPI}
 
-The speedup results for the MPI algorithm are given in Fig.~\ref{mpisu}. A more
+The speedup results for the MPI algorithm are given in Fig.~\ref{spd1}. A more
 legible plot for the cases of $p\leq16$ is given in Fig.~\ref{mpizoomsu}.  The MPI
 algorithm demonstrated slightly better speed up at equivalent core counts than the OpenMP
 algorithm.  It is noted there is an irregular drop from 4 to 8 cores in the MPI speed
@@ -574,23 +505,19 @@ communication overhead.  Alg.~\ref{alg:mpi} has similar communication cost to a 
 based algorithm.
 
      \begin{figure}[htbp!]
+         \begin{subfigure}{0.5\textwidth}
          \centering
-      %     \includegraphics[width=0.75\textwidth]{openmp2_speedup.pdf}
-           \caption{Plot of speedup versus $p$ for OpenMP algorithm, for prefix sum
-               of $10^9$ integers.\label{ompsu}}
-     \end{figure}
-\begin{figure}[htbp!]
-           \centering
-     %      \includegraphics[width=0.75\textwidth]{mpi_speedup.pdf}
-           \caption{Plot of speedup versus $p$ for MPI algorithm, for prefix sum of
-               $10^9$ integers.\label{mpisu}}
-     \end{figure}
-\begin{figure}[htbp!]
-           \centering
-           %\includegraphics[width=0.75\textwidth]{small.pdf}
-           \caption{Zoomed in plot of speedup versus $p$ for MPI
-           algorithm, for prefix sum of 10$^9$ integers.\label{mpizoomsu}}
-     \end{figure}
+           \includegraphics[width=1.0\textwidth]{speedup_thin.pdf}
+           \caption{Strong scaling to 128 processors.}
+     \end{subfigure}
+     \begin{subfigure}{0.5\textwidth}
+         \centering
+           \includegraphics[width=1.075\textwidth]{speedup_zoom_thin.pdf}
+           \caption{Zoomed view}
+     \end{subfigure}
+           \caption{Plot of speedup versus number of proocessors $p$ for $N=5\times
+               10^6$ histories.\label{spd1}}
+ \end{figure}
 
 \clearpage
 
@@ -649,20 +576,6 @@ serial to the parallel line should be roughly equal to $1/p$.  By visual examina
 case (at least generally), indicating that in fact the $O(n/p)$ term is mostly
 dominant through the regime of problems tested. 
 
-     \begin{figure}[htbp!]
-         \begin{subfigure}{0.5\textwidth}
-         \centering
-           %\includegraphics[width=1.075\textwidth]{openmp_elems_4.pdf}
-           \caption{$p=4$ \label{ompn4}}
-     \end{subfigure}
-     \begin{subfigure}{0.5\textwidth}
-           \centering
-           %\includegraphics[width=1.075\textwidth]{openmp_elems_8.pdf}
-           \caption{$p=8$ \label{ompn8}}
-       \end{subfigure}
-        \caption{Plot of time $T_{exp}$ vs problem size $n$ for OpenMP
-           algorithm.\label{ompn}}
-     \end{figure}
      \begin{figure}[htbp!]
          \begin{subfigure}{0.5\textwidth}
          \centering
@@ -817,6 +730,10 @@ MPI algorithm.  Once $n$ is large enough, this fixed cost of the MPI
 communication, per $p$, is negligible.  Although the OpenMP algorithm has a
 similar overhead due to the cost of managing threads, it is not quite as large. 
 
+
+BETTER TO HAVE EDGE PROCESSORS OWN MORE DOMAIN
+
+For the thin problem, probability of going whole way is 0.41
 
 \end{document}
 
