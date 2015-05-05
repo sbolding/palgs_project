@@ -365,7 +365,7 @@ outlined in Alg.~\ref{alg:dec}.
        \item Source random $x$ and $\mu$ from the specified source distribution
        \item \label{itm:start} Sample how far the particle travels $x_0$ from the distribution $p(x_0) =
         \sigma e^{-\sigma x_0}$.
-    \item Track particle to location of interaction or processor boundary:
+    \item Track particle to location of interaction \textbf{or} processor boundary:
         \begin{itemize}
             \item Tally the contribution to $\psi_i(x,\mu)$, the
                 linear angular flux representation with each space-angle cell $i$
@@ -387,6 +387,7 @@ outlined in Alg.~\ref{alg:dec}.
             \item Inform $P_{j+1}$ bank size to receive
             \item Send(rightbank, destination=$P_{j+1}$)
          \end{itemize}
+     \item Check with neighbors if receiving banks
        \item \textbf{IF} size(leftbank) $> 0$:
          \begin{itemize}
              \item Inform $P_{j-1}$ bank size to receive
@@ -601,15 +602,16 @@ $20\times 10^6/p$ histories to simulate).  Above 32 processors the dominant term
 the simulations is the communication and MPI synchronization overhead as before.  For the case of 64 processors and
 the domain copy algorithm, the cost of communication is $\sim20 \%$ of the total
 simulation cost.
-     \begin{figure}[htbp!]
-         \begin{subfigure}{0.5\textwidth}
+\clearpage
+\begin{figure}[p!]
+    \begin{subfigure}{0.5\textwidth}
          \centering
-           \includegraphics[width=1.08\textwidth]{speedup_thin.pdf}
+           \includegraphics[width=1.0\textwidth]{speedup_thin.pdf}
            \caption{Strong scaling to 128 processors.}
      \end{subfigure}
      \begin{subfigure}{0.5\textwidth}
          \centering
-           \includegraphics[width=1.08\textwidth]{speedup_zoom_thin.pdf}
+           \includegraphics[width=1.0\textwidth]{speedup_zoom_thin.pdf}
            \caption{Zoomed view}
      \end{subfigure}
            \caption{For the optically thin problem, a plot of speedup versus number of processors $p$ for $N=5\times
@@ -618,12 +620,12 @@ simulation cost.
      \begin{figure}[htbp!]
          \begin{subfigure}{0.5\textwidth}
          \centering
-           \includegraphics[width=1.08\textwidth]{speedup_thick.pdf}
+           \includegraphics[width=1.0\textwidth]{speedup_thick.pdf}
            \caption{Strong scaling to 128 processors.}
      \end{subfigure}
      \begin{subfigure}{0.5\textwidth}
          \centering
-           \includegraphics[width=1.08\textwidth]{speedup_zoom_thick.pdf}
+           \includegraphics[width=1.0\textwidth]{speedup_zoom_thick.pdf}
            \caption{Zoomed view}
      \end{subfigure}
      \caption{For the optically \emph{thick} problem, a plot of speedup versus number
@@ -633,20 +635,21 @@ simulation cost.
 
 \subsection{Weak Scaling Study}
 
-A plot of the weak scaling efficiency for various thread counts for the OpenMP and
-MPI algorithms are given below.  In general, the weak scaling does not perform well for either
-algorithm.  From 2-8 cores, the weak scaling efficiency are very similar for both the
-MPI and OpenMP algorithm.  As noticed, the efficiency drops significantly from 2 to 8 cores.   The large initial
-drops in the efficiency at low core counts are likely due to memory access times, as
-there is minimal communication cost at these low core counts.   If the cause of the initial drop in efficiency at low core counts can be mitigated, it is likely the case that the total
-efficiency would scale much better because this issue likely is effecting the
-processors on all nodes locally.
+A plot of the weak scaling efficiency for various processor counts for the thick and
+thin problem are given in Fig.~\ref{weak2} and~\ref{weak1} below.  They demonstrate
+simular behavior to the strong scaling results.  For the optically thin algorithm,
+the domain copy algorithm demonstrates good scaling out to 64 processors at around
+78\%.  The Domain decomposition algorithm does not scale well because the problem
+domain remains the same size, resulting in a larger majority of histories reaching
+processor boundaries, resulting in higher communication. A better study may be one in
+which the optical thickness of each processor domain remains constant.
 
-For the MPI algorithm, the efficiency begins to level off at around 20\% above 16 cores.  It is noted however,
-that above $\sim$32 cores, increasing the problem size, per core, does not result
-in any loss in efficiency.  Although the MPI algorithm is not exceptionally
-efficient, very large problems can be ran without much loss in computational time due
-to additional parallel communication costs.
+Both algorithms scale very well for the optically thick problem. The time to simulate
+additional histories, per processor, is relatively constant in this limiting case. The domain
+decomposition algorithm scales slightly better. Because particles are not very likely
+to cross processor boundaries, even on large processor counts (small processor
+domains) the addition of extra histories does not increase the
+communication cost for the domain decomposition algorithm.  
 
      \begin{figure}[htbp!]
          \centering
@@ -654,194 +657,33 @@ to additional parallel communication costs.
            \caption{Weak scaling study for optically thin problem with $N=250,000$ histories per processor
            \label{weak1}}
      \end{figure}
-     \begin{figure}[htbp!]
+     \begin{figure}[ht!]
          \centering
            \includegraphics[width=0.7\textwidth]{weak_thick.pdf}
            \caption{Weak scaling study for optically thick problem with
                $N=2\times 10^6$ histories per processor
            \label{weak2}}
      \end{figure}
-\clearpage
-\subsection{Computational time versus problem size}
-
-Plots of computational time versus problem size, for various \emph{fixed} $p$, are
-given below for each algorithm.  It is expected that the dominant term in the
-time complexity for both algorithms is $O(n/p)$, so the computational times should scale linearly with $n$.
-This behavior was observed, demonstrated by the linear shape of the plotted run times.
-For the case of $p=4$, for MPI, there is a slight
-increase at 2$\times 10^9$. This increase is the result of the problem size being at the edge of the limits
-of available RAM, likely resulting in an increased time due to many off chip memory
-accesses.   
-
-As $p$ is increased, the slope of the lines decreases because the time to solve the
-same size of problems with more processors should be less, as expected.
-The sequential times scales as $O(n)$, and the parallel algorithms should scale with
-the dominate term of $O(n/p)$, where $p$ is fixed.  Thus, the ratio of the slopes of the
-serial to the parallel line should be roughly equal to $1/p$.  By visual examination, this was found to be the
-case (at least generally), indicating that in fact the $O(n/p)$ term is mostly
-dominant through the regime of problems tested. 
-
-     \begin{figure}[htbp!]
-         \begin{subfigure}{0.5\textwidth}
-         \centering
-           %\includegraphics[width=1.075\textwidth]{mpi_elems_4.pdf}
-           \caption{$p=4$ \label{mpin4}}
-     \end{subfigure}
-     \begin{subfigure}{0.5\textwidth}
-           \centering
-           %\includegraphics[width=1.075\textwidth]{mpi_elems_16.pdf}
-           \caption{$p=16$ \label{mpin16}}
-       \end{subfigure}
-        \caption{Plot of time $T_{exp}$ vs problem size $n$ for MPI
-           algorithm.\label{mpin}}
-     \end{figure}
-
-
-\clearpage
-\subsection{Determining Asymptotic Time Coefficients}
-
-The experiment to determine the asymptotic coefficients as discussed in the
-experimental set up was performed for various processor counts, for both algorithms.
-Assuming the $O(n/p)$ term dominates, as demonstrated in the previous section, the plotted coefficients represent an
-approximate experimental time of the form
-\begin{equation}
-    T_{exp}(n,p) \simeq C_{0}T_{pred}(n,p) = C_{0}\left(\frac{n}{p}\right), \quad n>n_0
-    \label{duh}
-\end{equation}
-A table summarizing the visually estimated coefficients, for both algorithms and various $p$,  is
-given in Table~\ref{tab1}. Plots of the ratio $T_{exp}/T_{pred}$ versus $n$, for
-various $p$, are given below.  These plots were used to visually estimate the value
-of the coefficents.  Enlarged graphs are included as necessary to 
-better discern the values of data points.
-
-As demonstrated in the table, the model in
-Eq.~\eqref{duh} is fairly accurate as the coefficients generally agree, but there is
-a clear trend with $p$ that is not being accounted for.  The fact that $C_0$ is increasing
-with $p$ indicates that there is extra \emph{positive} terms not included in the
-predicted time model $T_{pred}$.  This is not expected as $T_{pred}$ does not attempt
-to include a term for the $O(p)$ or $O(\log p)$ parallel steps.   
-
-The variablity in the threshold coefficient $n_0$ in the MPI algorithm is also a result of the lack of
-including weighted $O(p)$ and $O(\log p)$ terms.  In particular, at lower values of
-$n$ the ratio $T_{exp}/T_{pred}$ is above $C_0$.  This indicates that the
-experimental times are much larger than $C_O(n/p)$ predicts.  Thus, at lower values of
-$n$, the $O(p)$ terms are more significant (relative to the total run time) so the
-$O(n/p)$ is no longer the dominant term in the time complexity.  As $p$ is increased,
-the $O(n/p)$ term becomes less dominant, leading to an increased value of $n_0$. This
-can be seen in particular in the $p=64$ case.  The OpenMP algorithm does not
-demonstrate as much variablity in $n_0$ because $n$ is large relative to the low
-values of $p$, and the shared memory allows for the simple $O(p)$ serial prefix
-summation in the algorithm to be performed with relatively low performance cost.
-
-\begin{table}[h!]
-    \caption{\label{tab1} Tabulated results for estimating asymptotic coefficients}
-\centering
-\begin{tabular}{|c|c|c|} \hline
-    $p$ & $C_0$ & $n_0$ \\ \hline
-    \multicolumn{3}{|c|}{OpenMP} \\ \hline
-     2 & 0.0034 & $0.1\times10^9$ \\
-     4 & 0.0044 & $0.1\times10^9$ \\
-     8 & 0.0075 & $0.1\times10^9$ \\ \hline
-    \multicolumn{3}{|c|}{MPI} \\ \hline
-     4 & 0.0044 & $0.4\times10^9$ \\
-     16 & 0.0095 & $0.4\times10^9$ \\
-     64 & 0.0150 & $1.0\times10^9$ \\ \hline
-\end{tabular}
-\end{table}
-%
-%     \begin{figure}[htbp!]
-%         \begin{subfigure}{0.5\textwidth}
-%         \centering
-%           \includegraphics[width=1.075\textwidth]{openmp_asym_2.pdf}
-%           \caption{$p=2$ \label{ompn2}}
-%     \end{subfigure}
-%         \begin{subfigure}{0.5\textwidth}
-%         \centering
-%           \includegraphics[width=1.075\textwidth]{openmp_asym_4.pdf}
-%           \caption{$p=4$ \label{ompn4}}
-%     \end{subfigure}
-%     \begin{subfigure}{0.5\textwidth}
-%           \centering
-%           \includegraphics[width=1.075\textwidth]{openmp_asym_8.pdf}
-%           \caption{$p=8$ \label{ompn8}}
-%       \end{subfigure}
-%     \begin{subfigure}{0.5\textwidth}
-%           \centering
-%           \includegraphics[width=1.075\textwidth]{openmp_asym_zoom_8.pdf}
-%           \caption{$p=8$, enlarged \label{ompnzoom8}}
-%       \end{subfigure}
-%       \caption{Plot of $T_{exp}/T_{pred}$ vs problem size $n$ for OpenMP
-%           algorithm.\label{ompn}}
-%     \end{figure}
-%
-%
-%
-%     \begin{figure}[htbp!]
-%         \begin{subfigure}{0.5\textwidth}
-%         \centering
-%           \includegraphics[width=1.075\textwidth]{mpi_asym_4.pdf}
-%           \caption{$p=4$ \label{mpin4}}
-%     \end{subfigure}
-%     \begin{subfigure}{0.5\textwidth}
-%           \centering
-%           \includegraphics[width=1.075\textwidth]{mpi_asym_16.pdf}
-%           \caption{$p=16$ \label{mpin16}}
-%       \end{subfigure}
-%     \begin{subfigure}{0.5\textwidth}
-%           \centering
-%           \includegraphics[width=1.075\textwidth]{mpi_asym_zoom_16.pdf}
-%           \caption{$p=16$, enlarged \label{mpinzoom16}}
-%       \end{subfigure}
-%     \begin{subfigure}{0.5\textwidth}
-%           \centering
-%           \includegraphics[width=1.075\textwidth]{mpi_asym_64.pdf}
-%           \caption{$p=64$ \label{mpin64}}
-%       \end{subfigure}
-%     \begin{subfigure}{0.5\textwidth}
-%           \centering
-%           \includegraphics[width=1.075\textwidth]{mpi_asym_zoom_64.pdf}
-%           \caption{$p=64$, enlarged \label{mpinzoom64}}
-%       \end{subfigure}
-%       \caption{Plot of $T_{exp}/T_{pred}$ vs problem size $n$ for MPI
-%           algorithm.\label{mpin}}
-%     \end{figure}
 
 \section{Conclusions}
 
 The various experiments performed were able to provide insight into the performance
-of the two algorithms.  Both algorithms were able to demonstrate speedup
-over the serial algorithm.  Although the weak scaling studies did not show very good efficiency,
-they did demonstrate that the algorithms can be used to solve large problems that a
-serial algorithm could not necessarily handle.  The time complexity experiment
-demonstrated that in general for parallel algorithms the dominant parallel $O(n/p)$
-terms can provide a good estimate of scaling with $n$, but may not be sufficiently
-accurate across a large range of $p$. Also, the weak scaling experiment demonstrated that there is extra costs that we are
-clearly not accounting for in our model. In general, because the prefix sum involves such primitive operations, it exposed any memory or
-other overhead in computations, even at relatively large input sizes of
-$\mathcal{O}(10^9)$ integers.  This caused the need for very efficient code to demonstrate speed
-up. 
-
-Overall, the MPI algorithm is a better choice over OpenMP, at least for this
-machine and sufficiently large values of $n$.  The MPI algorithm showed similar, or slightly better,
-performance at low thread counts than OpenMP, for all experiments performed.  In
-addition, it can easily be extended to large
-core counts without the need for shared memory.  On a machine that did not have the
-issue of non-uniform RAM access times across multiple chips,
-the OpenMP algorithm may show better performance at low core counts. The OpenMP
-algorithm may also perform better at lower values of $n$ that were not thoroughly
-tested in the experiments.  The results of the asymptotic
-complexity experiments indicate that the value of $n_0$ is generally larger for the
-MPI algorithm.  Once $n$ is large enough, this fixed cost of the MPI
-communication, per $p$, is negligible.  Although the OpenMP algorithm has a
-similar overhead due to the cost of managing threads, it is not quite as large. 
-
-
-A couple strategies could be used.
-
-
-ASYNCHRONOUSE WOULD BE BETTER. A simple setup to play around with 1D parallelized
-code. It can be used in the future to test other algorithmic technqiues without the
-overhead of a full MOnte Carlo code.  T
+of the two algorithms.  Both algorithms were able to demonstrate significant speedup
+over the serial algorithm.  This is expected because the linear summation of random
+histories present in Monte Carlo lends it self to trivial parallization.  In all
+honesty, the domain decomposition algorithm scaled much better than expected.  This
+is partially do to the fact that tracking particles is an expensive process.
+However, the scaling studies demonstrated that if the cost of simulating histories is
+not high enough, communication limits scalling efficiency, as expected.  The
+resulting code has produced a useful emulator for testing simple parallelization
+strategies in the future.  The next step would be to extend the domain decomposition
+algorithm to work in an asynchronous fashion.  The fact that some processors are
+waiting for entire communication steps hurts the efficiency in thin problems.  This
+could be improved by having processors request histories from their neighbors when
+they are idle.  It is likely that the neighbor processors will have particles
+available.  This is only true in the case when source particles are uniform
+throughout the domain; however, this is the case with the actual algorithm used by
+the method in this code.  
 
 \end{document}
 
