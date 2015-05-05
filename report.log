@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2015.3.17)  4 MAY 2015 21:20
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2014.9.28)  5 MAY 2015 12:17
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -449,31 +449,25 @@ Package: float 2001/11/08 v1.3d Float enhancements (AL)
 )
 (/usr/share/texlive/texmf-dist/tex/latex/setspace/setspace.sty
 Package: setspace 2011/12/19 v6.7a set line spacing
-) (./report.aux
-
-LaTeX Warning: Label `hawt' multiply defined.
-
-
-LaTeX Warning: Label `thicksu' multiply defined.
-
-)
+) (./report.aux)
 \openout1 = `report.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 80.
-LaTeX Font Info:    ... okay on input line 80.
- (/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 81.
+LaTeX Font Info:    ... okay on input line 81.
+
+(/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count140
 \scratchdimen=\dimen154
@@ -508,7 +502,7 @@ Package caption Info: float package is loaded.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
 \AtBeginShipoutBox=\box36
-Package hyperref Info: Link coloring OFF on input line 80.
+Package hyperref Info: Link coloring OFF on input line 81.
 
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2012/10/27 v2.43 Cross-referencing by name of section
@@ -518,9 +512,9 @@ Package: gettitlestring 2010/12/03 v1.4 Cleanup title references (HO)
 )
 \c@section@level=\count147
 )
-LaTeX Info: Redefining \ref on input line 80.
-LaTeX Info: Redefining \pageref on input line 80.
-LaTeX Info: Redefining \nameref on input line 80.
+LaTeX Info: Redefining \ref on input line 81.
+LaTeX Info: Redefining \pageref on input line 81.
+LaTeX Info: Redefining \nameref on input line 81.
 
 (./report.out) (./report.out)
 \@outlinefile=\write3
@@ -561,166 +555,151 @@ LaTeX Info: Redefining \nameref on input line 80.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-LaTeX Font Info:    Try loading font information for U+msa on input line 92.
+LaTeX Font Info:    Try loading font information for U+msa on input line 93.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 92.
+LaTeX Font Info:    Try loading font information for U+msb on input line 93.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2
-
-]
-Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
-put line 178.
-LaTeX Font Info:    Try loading font information for OMS+cmr on input line 191.
-
-
-(/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
-File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
-)
-LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
-(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 191.
- [3]
-LaTeX Font Info:    Try loading font information for OT1+pcr on input line 243.
-
-
-(/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1pcr.fd
-File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
-)
-(./drawing/procs.pdf_tex
-<drawing/procs.pdf, id=126, 381.64589pt x 138.22318pt>
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] (./drawing/procs.pdf_tex
+<drawing/procs.pdf, id=100, 381.64589pt x 138.22318pt>
 File: drawing/procs.pdf Graphic file (type pdf)
  <use drawing/procs.pdf>
 Package pdftex.def Info: drawing/procs.pdf used on input line 52.
 (pdftex.def)             Requested size: 422.77664pt x 153.12581pt.
-) [4] [5 <./drawing/procs.pdf>] (./drawing/procs.pdf_tex
-File: drawing/procs.pdf Graphic file (type pdf)
-
-<use drawing/procs.pdf>
-Package pdftex.def Info: drawing/procs.pdf used on input line 52.
-(pdftex.def)             Requested size: 422.77664pt x 153.12581pt.
 )
+Overfull \hbox (0.95398pt too wide) in paragraph at lines 150--161
+\OT1/cmr/m/n/12 Monte Car-los solves par-ti-cle trans-port prob-lem by track-in
+g ran-dom par-ti-cle his-to-ries through-
+ []
 
-LaTeX Warning: Float too large for page by 19.7785pt on input line 409.
+[2
 
-[6] [7] [8] [9]
+]
+Package hyperref Info: bookmark level for unknown algorithm defaults to 0 on in
+put line 194.
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 207.
 
-LaTeX Warning: Reference `thinsu' on page 10 undefined on input line 556.
+ (/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 207.
+ [3 <./drawing/procs.pdf>]
+LaTeX Font Info:    Try loading font information for OT1+pcr on input line 252.
 
+ (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1pcr.fd
+File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
+) [4] [5]
 
-LaTeX Warning: Reference `alg:openmp' on page 10 undefined on input line 568.
+LaTeX Warning: Float too large for page by 19.7785pt on input line 412.
 
-<figures/speedup_thin.pdf, id=198, 578.16pt x 433.62pt>
+[6
+
+] [7] [8] [9] [10] <figures/speedup_thin.pdf, id=217, 578.16pt x 433.62pt>
 File: figures/speedup_thin.pdf Graphic file (type pdf)
 
 <use figures/speedup_thin.pdf>
-Package pdftex.def Info: figures/speedup_thin.pdf used on input line 582.
+Package pdftex.def Info: figures/speedup_thin.pdf used on input line 607.
 (pdftex.def)             Requested size: 253.66812pt x 190.25084pt.
 
-Overfull \hbox (18.79062pt too wide) in paragraph at lines 582--583
+Overfull \hbox (18.79062pt too wide) in paragraph at lines 607--608
  [][] 
  []
 
-<figures/speedup_zoom_thin.pdf, id=199, 578.16pt x 433.62pt>
+<figures/speedup_zoom_thin.pdf, id=218, 578.16pt x 433.62pt>
 File: figures/speedup_zoom_thin.pdf Graphic file (type pdf)
 
 <use figures/speedup_zoom_thin.pdf>
-Package pdftex.def Info: figures/speedup_zoom_thin.pdf used on input line 587.
+Package pdftex.def Info: figures/speedup_zoom_thin.pdf used on input line 612.
 (pdftex.def)             Requested size: 253.66812pt x 190.25084pt.
 
-Overfull \hbox (18.79062pt too wide) in paragraph at lines 587--588
+Overfull \hbox (18.79062pt too wide) in paragraph at lines 612--613
  [][] 
  []
 
 
-Overfull \hbox (2.61107pt too wide) in paragraph at lines 580--591
+Overfull \hbox (2.61107pt too wide) in paragraph at lines 605--616
 []$[]$ $[]$ 
  []
 
-<figures/speedup_thick.pdf, id=200, 578.16pt x 433.62pt>
+<figures/speedup_thick.pdf, id=219, 578.16pt x 433.62pt>
 File: figures/speedup_thick.pdf Graphic file (type pdf)
 
 <use figures/speedup_thick.pdf>
-Package pdftex.def Info: figures/speedup_thick.pdf used on input line 596.
+Package pdftex.def Info: figures/speedup_thick.pdf used on input line 621.
 (pdftex.def)             Requested size: 253.66812pt x 190.25084pt.
 
-Overfull \hbox (18.79062pt too wide) in paragraph at lines 596--597
+Overfull \hbox (18.79062pt too wide) in paragraph at lines 621--622
  [][] 
  []
 
-<figures/speedup_zoom_thick.pdf, id=201, 578.16pt x 433.62pt>
+<figures/speedup_zoom_thick.pdf, id=220, 578.16pt x 433.62pt>
 File: figures/speedup_zoom_thick.pdf Graphic file (type pdf)
 
 <use figures/speedup_zoom_thick.pdf>
-Package pdftex.def Info: figures/speedup_zoom_thick.pdf used on input line 601.
+Package pdftex.def Info: figures/speedup_zoom_thick.pdf used on input line 626.
 
 (pdftex.def)             Requested size: 253.66812pt x 190.25084pt.
 
-Overfull \hbox (18.79062pt too wide) in paragraph at lines 601--602
+Overfull \hbox (18.79062pt too wide) in paragraph at lines 626--627
  [][] 
  []
 
 
-Overfull \hbox (2.61107pt too wide) in paragraph at lines 594--605
+Overfull \hbox (2.61107pt too wide) in paragraph at lines 619--630
 []$[]$ $[]$ 
  []
 
-[10] [11 <./figures/speedup_thin.pdf> <./figures/speedup_zoom_thin.pdf> <./figu
+[11 <./figures/speedup_thin.pdf> <./figures/speedup_zoom_thin.pdf>] [12 <./figu
 res/speedup_thick.pdf> <./figures/speedup_zoom_thick.pdf>]
-<figures/weak_thin.pdf, id=354, 578.16pt x 433.62pt>
+<figures/weak_thin.pdf, id=369, 578.16pt x 433.62pt>
 File: figures/weak_thin.pdf Graphic file (type pdf)
 
 <use figures/weak_thin.pdf>
-Package pdftex.def Info: figures/weak_thin.pdf used on input line 628.
+Package pdftex.def Info: figures/weak_thin.pdf used on input line 653.
 (pdftex.def)             Requested size: 328.82707pt x 246.61679pt.
 
-<figures/weak_thick.pdf, id=355, 578.16pt x 433.62pt>
+<figures/weak_thick.pdf, id=370, 578.16pt x 433.62pt>
 File: figures/weak_thick.pdf Graphic file (type pdf)
 
 <use figures/weak_thick.pdf>
-Package pdftex.def Info: figures/weak_thick.pdf used on input line 634.
+Package pdftex.def Info: figures/weak_thick.pdf used on input line 659.
 (pdftex.def)             Requested size: 328.82707pt x 246.61679pt.
- [12
+ [13
 
- <./figures/weak_thin.pdf>] [13 <./figures/weak_thick.pdf>]
-Overfull \hbox (2.61107pt too wide) in paragraph at lines 660--671
+ <./figures/weak_thin.pdf>] [14 <./figures/weak_thick.pdf>]
+Overfull \hbox (2.61107pt too wide) in paragraph at lines 685--696
 []$[]$ $[]$ 
  []
 
-[14
+[15
 
-] [15
+] [16
 
 ]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 821.
- [16]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 821.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 846.
+ [17]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 846.
  (./report.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 821.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 821.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 846.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 846.
 Package rerunfilecheck Info: File `report.out' has not changed.
-(rerunfilecheck)             Checksum: F9B230F713580458613C0CA4C544E917;1386.
-
-
-LaTeX Warning: There were undefined references.
-
-
-LaTeX Warning: There were multiply-defined labels.
-
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 821.
+(rerunfilecheck)             Checksum: D689E19D790968CE443C8EDF526D75EA;1525.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 846.
  ) 
 Here is how much of TeX's memory you used:
- 11408 strings out of 493304
- 171115 string characters out of 6139871
- 292373 words of memory out of 5000000
- 14592 multiletter control sequences out of 15000+600000
+ 11411 strings out of 493304
+ 171144 string characters out of 6139871
+ 291373 words of memory out of 5000000
+ 14594 multiletter control sequences out of 15000+600000
  14813 words of font info for 57 fonts, out of 8000000 for 9000
  957 hyphenation exceptions out of 8191
- 42i,10n,40p,274b,693s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 42i,11n,40p,274b,693s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texm
 f-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist
@@ -736,10 +715,10 @@ xlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/
 texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-d
 ist/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texlive/texmf-dist/fo
 nts/type1/urw/courier/ucrr8a.pfb>
-Output written on report.pdf (16 pages, 268844 bytes).
+Output written on report.pdf (17 pages, 272854 bytes).
 PDF statistics:
- 540 PDF objects out of 1000 (max. 8388607)
- 330 compressed objects within 4 object streams
- 94 named destinations out of 1000 (max. 500000)
- 196 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 555 PDF objects out of 1000 (max. 8388607)
+ 344 compressed objects within 4 object streams
+ 97 named destinations out of 1000 (max. 500000)
+ 212 words of extra memory for PDF output out of 10000 (max. 10000000)
 

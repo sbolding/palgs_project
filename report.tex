@@ -54,6 +54,7 @@
 \newcommand{\bx}{\mathbf{X}}
 \newcommand{\ba}{\mathbf{A}}
 \renewcommand{\d}{\mathrm{d}}
+\newcommand{\DD}{\mathcal{D}}
 \newcommand{\upl}{u_{\text{plane}}}
 \newcommand{\upt}{u_{\text{point}}}
 \newcommand{\D}{\Delta}
@@ -112,7 +113,8 @@ of two different approaches to parallelizing a Monte Carlo particle transport co
 domain copy and domain decomposition.  In a domain copy algorithm, each processor has a copy of
 the entire physical domain of the problem. This is opposed to domain decomposition in
 which each processor only contains a portion of the domain. Each has their own
-benefits and difficulties.  The algorithms were
+benefits and difficulties. An illustration of the two strategies is given in
+Fig.~\ref{hawt} The algorithms were
 implemented in a simplified version of a research code that simulates pure-absorber,
 one-dimensional particle transport using the Monte Carlo method [Shultis and Faw,
 2011].  Speed up in the full code is not of particular interest to this project.  The goal is to
@@ -135,6 +137,13 @@ of the range of potential problem types.  The algorithms are benchmarked
 against the original sequential algorithm. As expected, the domain copy algorithm
 showed good scalability for this simple 1D problem, but the domain decomposition
 algorithm showed good scaling in optically thick problems.
+\begin{figure}[hb!]
+    \centering
+    \def\svgwidth{0.9\textwidth}
+    \input{drawing/procs.pdf_tex}
+    \caption{Illustration of domain copy (left) and domain decomposition (right)
+        strategies on two processors. \label{hawt}}
+    \end{figure}
 
 \subsection{Monte Carlo Transport Basics}
 
@@ -180,7 +189,7 @@ source is represented
 over the mesh with a cell-wise linear distribution that can be easily sampled.  To determine
 the scalar flux, the basic process defined in 
 Alg.~\ref{alg:serial} is performed.  
-\begin{algorithm}
+\begin{algorithm}[htbp!]
     \caption{\label{alg:serial}Serial algorithm for solving a transport problem with
     Monte Carlo.}
     \vspace{0.06in}
@@ -213,11 +222,12 @@ Alg.~\ref{alg:serial} is performed.
 \subsection{Sequential Algorithm}
 
 The sequential algorithm is defined by Alg.~\ref{alg:serial}.  Tracking particle
-histories from birth to death is an expensive process and the dominating term in run
-times.  Thus, the complexity for running time is expected to be $O(N
-T_j)$, where $T_j$ is the average time to simulate a single history $j$.  $T_j$ is
-also a function of the problem size and parameters, but is, on average, a constant for a
-particular problem.  Thus, $T(N) = O(N)$, for a particular problem.
+histories from birth to death can be an expensive process and is typically the dominating term in run
+times.  Thus, the complexity for running time is expected to be dominated by $N
+T_k$, where $T_k$ is the average time to simulate a single history $k$ and $N$ is the
+number of histories performed.  $T_k$ is
+a function of the problem size and parameters, but it is, on average, a constant for a
+particular problem.  Thus, $T(N) = O(N)$.
 
 \subsection{Domain Copy Algorithm}
 
@@ -227,46 +237,38 @@ be seen in Fig.~\ref{hawt}.  The first approach
 is domain copy, in which each processor gets a copy of the entire physical mesh,
 source, and tallies. Each processor simulates ($N/p$) histories, where $p$ is the
 number of processors and $N$ is the total number of histories to be simulated. Random
-numbers are gerated using the counter-based
+numbers are generated using the counter-based
 \href{http://www.thesalmons.org/john/random123/papers/random123sc11.pdf}{Easy123}
 pseudo random number generator (RNG).  Each processor uses its MPI rank as the key;
 this provides each processor a unique, independent set of random numbers, and thus
 independent histories.  After all processors have completed their history tracking,
-the results of the scalar flux The linear representation for each cell results in two
-points for each spatial cell to be communicated.  for each processor are 
-combined at the end of the simulation using an all-reduce strategy.  On average, each processors ($N/p$)
-simulations take the same time as the particle histories are samples of the same
-underlying distributions, limiting
-asynchronization of processors.  The domain copy algorithm is given in
-Alg.~\ref{alg:copy}.
+the scalar flux representation is computed based on its tallies before communication
+is performed.  On average, each processor's $N/p$ histories take the same time
+because the particle histories are samples of the same
+underlying distributions. This limits the amount of asynchronization of processors
+before communication.  
 
 The representation of $\phi(x)$ is stored as a vector of spatial degrees of freedom
-per element. An \verb{MPI_Allreduce{ is performed to compute the sum of all results
+per element. An \verb{MPI_Allreduce{ is performed to compute the linear sum of all results
     from each processor and then copy the result to each of the processors. The sum must be divided by $p$ to produce the correct
     average.  Since each processor's $N/p$ histories were independent, this is equivalent to
     running $N$ histories with a single processor.  The broadcasting of the result to
     all processors is done because in a real simulation each processor would need to
-    know the scalar flux for the next portion of the algorithm.  
+    know the scalar flux for the next portion of the algorithm.  The domain copy algorithm is given in
+Alg.~\ref{alg:copy}.
+
 
 As discussed for the serial algorithm, the dominating term in the simulation run time is
 performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing strategy
     which will be $O(\log n_x)$, where $n_x$ is the number of elements in the problem.
     This communication term is relatively small and a constant for a particular
-    problem size. Thus $T(N) = O(N/p + \log n_x) = O(N/p)$.   At very large $p$ or a low number of $N$, this term could become
-    more significant, but for realistic values of $N$ ($O(10^6)$), it is small. All processors are
-    tracking particles for all histories for, on average, the same amount of time.
-    Thus, $W(N) = O(N/p*p) = O(N)$, which is work optimal. It is noted that because
+    problem size. Thus $T(N) = O(N/p + \log n_x) = O(N/p)$.   At very large $p$, or a
+    low number of $N$, the $O(\log n_x)$ term could become dominating. All processors are
+    working for the entire simulation.
+    Thus, neglecting the typically small communication cost, $W(N) = O(N/p*p) = O(N)$, which is work optimal. It is noted that because
     $T_j$ is a function of problem size, there is no way to easily measure or study
     the size of $\log n_x$ with scaling studies.
 
-
-\begin{figure}[hb!]
-    \centering
-    \def\svgwidth{0.9\textwidth}
-    \input{drawing/procs.pdf_tex}
-    \caption{Illustration of domain copy (left) and domain decomposition (right)
-        strategies on two processors. \label{hawt}}
-    \end{figure}
 \begin{algorithm}
     \caption{MPI domain copy algorithm.\label{alg:copy}}
     \vspace{0.06in}
@@ -299,39 +301,45 @@ performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing stra
 /* Each processor now has a copy of $\phi(x)$ */
 \end{algorithm}
 
+\clearpage
 
 \subsection{Domain Decomposition Algorithm}
 
+\subsubsection{Algorithm} 
+
 In the decomposed case, each processor owns a portion of the space-angle mesh. A
-uniform decomposition is performed based on spatial mesh. Thus each processor owns
-all of the angular element, for some particular region of space $\{x:x_l<x<x_r\}$, where
-$x_l$ is the left edge of the region and $x_r$ is the right edge of the region. he
-processors are organized in a linear array.   The mesh is
+uniform decomposition is performed based on the spatial coordinate $x$. Thus each
+processor has a domain $\DD_j$ consisting of all of the space-angle elements for some
+a particular region of space (the collection of all angle elements corresponding to a
+particular set of spatial elements). The domain is defined as $\DD_j = \{x:x_l<x<x_r\}$, where
+$x_l$ is the left edge of the region and $x_r$ is the right edge of the region for
+processor $j$. Because the spatial mesh is one-dimensional, the
+decomposition is ordered in a linear processor array.   The mesh is
 divided so that boundaries of processor domains correspond with spatial element
 boundaries.  To simplify implementation, each processor has a copy of the entire
 spatial mesh but is only allowed to track over a certain set of spatial elements.
-Since the mesh is 1D, this straight forward.  
 
-During tracking of the history, if a particle leaves the domain of that history, it
+During tracking of the history, if a particle leaves the domain of that processor, it
 is stored in the appropriate ``bank'' (there is one each for particles leaving left
 and right).  The bank is implemented as a growable vector of objects.  These banks are then communicated to the appropriate adjacent processor as
-necessary.  
+necessary. Communication is performed using explicit MPI send and receive commands.
+The size of the bank is communicated before the banks because the size of the array is variable.
 Bank contains particle structures that are transfered using \verb\MPI_Type_struct\
 types. Each banked structure contains all of the necessary information to continue tracking the
 particle as if it had been on one processor (with the exception of a different set of
 random numbers). 
 
-For simplicity, the most naive approach to communicating banked particles is
+For simplicity, the most naive approach to communicating throughout the simulation is
 performed.  Each processor runs their initial batch of source particles, banking
 particles that have left the domain as necessary.  Then, all processors send their
 banked particles to their left and right neighbors as appropriate. Each processor
 then tracks all of the received particles from their neighbors, including banking as
-necessary.  The process of communicating banks and simulating the recieved particles
+necessary.  The process of communicating banks and simulating the received particles
 is repeated until all particles have been absorbed or leaked from the system.  The
-processors must synchronize at each step to ensure they recieve the bank of particles
+processors must synchronize at each step to ensure they receive the bank of particles
 before new ones are added.  This communication approach can become very expensive and
-inefficent in problems where particles are likely to stream across the entire
-problem, as some processors will be idle for long periods of time in intermediate
+inefficient in problems where particles are likely to stream across the entire
+problem; some processors will be idle for long periods of time in intermediate
 steps, even though there is work they could be doing. 
 
 Once all particles have terminated, $\phi(x)$ is computed locally on each processor.
@@ -341,13 +349,7 @@ implementation, a communication step is performed to verify correct output, but 
 is not included in timing results. The overall algorithm is
 outlined in Alg.~\ref{alg:dec}.
 
-\begin{figure}[hb!]
-    \centering
-    \def\svgwidth{0.9\textwidth}
-    \input{drawing/procs.pdf_tex}
-    \caption{Illustration of domain copy (left) and domain decomposition (right)
-        strategies on two processors. \label{hawt}}
-    \end{figure}
+
 \begin{algorithm}
     \caption{MPI domain decomposition algorithm.\label{alg:dec}}
     \vspace{0.06in}
@@ -409,6 +411,36 @@ outlined in Alg.~\ref{alg:dec}.
 /* Each processor now knows $\phi(x)$ for its domain */
 \end{algorithm}
 
+\subsubsection{Complexity}
+
+The complexity for this algorithm is less straightforward. To simplify the analysis,
+the following assumptions are made: uniform material properties, a uniform processor
+decomposition, and a uniform number of
+particles $N/p$ are born in each processor (this would be the case for a uniform
+source distribution and processor decomposition).  With these assumptions, the time complexity can
+be defined as
+\begin{equation}
+    T(N) = (N/p)T_j+ \sum_{t=1}^{n_c}\left(T_jN_t +  T_{c,t}\right).
+\end{equation}
+Here, $n_c$ is the number of
+communication steps, $T_{c,t}$ is the time to communicate the largest bank at
+communication step
+$t$, $T_j$ is the average time to track a history across the processor domain
+$\DD_j$, and $N_t$ is the size of the largest received bank of particles after communication step $t$.
+Because synchronization is enforced, the processors with the largest bank to
+simulate or communicate are the limiting factor. Because the same number of total
+histories $N$ is simulated, the total amount of work to transport particles is the
+same as in the serial case.  Thus, the work is $W(N) = O(N) +W_c$, where $W_c$ is the
+total work spent on the communication steps. 
+
+It is difficult to reduce the time expression more, except for in the limiting cases.
+In the limiting worst case of an optically thin
+problem (near void), all particles can cross the domain yielding $n_c \simeq p$
+and $N_t=O(N/p)$. The communication time will likely dominate this simulation.  For
+the case of a very thick (particles are absorbed very quickly),  then $n_c\simeq1$, $N_t\simeq0$,
+and $T(N) = O(N/P)$ and $W(N) = O(N)$, which is work and time optimal.  Thus, it is expected in optically thick problems that this
+algorithm will scale as well as domain copy.
+
 \section{Experimental Setup}
 
 \subsection{Machine Information}
@@ -431,19 +463,17 @@ at \url{http://sc.tamu.edu/systems/eos/}
 \subsection{Problem Descriptions}
     
 To investigate the effect of the problem type, all experiments are performed for two
-different types of problems. There is a wide variety of the input space that could
-happen, but these two problems are chosen to expose potential weaknesses of the
-domain decomposition algorithm.  Both problems have a source (including scattering
+different types of problems. These problems are chosen to show the limiting cases of
+performance for the domain decomposition algorithm.  Both problems have a source (including scattering
 source) defined to produce a uniform distribution of particles throughout the domain. 
 The problems will be referred to herein as the optically ``thick'' and optically
 ``thin'' problem.  
 
-The optical thickness is of particular relevance due to the
-probability of particles born on one end of the problem reaching the opposite in.
 The \emph{more} optically thick the problem, the \emph{less} likely a particle will traverse the
 entire problem. In general, thicker problems require less tracking across the mesh,
 resulting in shorter run times.  For the case of domain copy, this has minimal effect
-on timing results.  However, for domain decomposition this has a significant effect.
+on timing results.  However, for domain decomposition this has a significant effect,
+as discussed in the theoretical analysis section.
 The very thin problem is chosen so that the majority of histories will traverse the
 entire problem.  This means that approximately $p$ communication steps, of very
 large banks, must be performed.  It is expected that this will demonstrate the worst case
@@ -454,7 +484,7 @@ may happen, but they will involve very few particles.  There will always be at l
 step required due to the fact that some particles will be born right next to a
 processor boundary.  The specifics of the two problems are defined below:  
 \begin{itemize}
-    \item \textbf{Optically thin:}  The total domain has width $T = 4.51 cm$
+    \item \textbf{Optically thin:}  The total domain has width $T = 4.51$ cm
         and total removal cross section $\sigma = 0.02$. The probability a
         history traverses the entire domain before interacting (crossing all processors) is
         $e^{-\sigma T} = 90 \%$.
@@ -469,8 +499,7 @@ processor boundary.  The specifics of the two problems are defined below:
 
 \subsection{Description of Experiments}
 
-Two experiments were performed to gauge the performance and scalability of the
-two algorithms. The experiments are discussed individually below. Batch files to run the
+Batch files to run the
 various jobs were created using a Python script.  Output files were processed with a
 Python script as well.  The
 portions of code run times that is included for results of each algorithm are
@@ -487,9 +516,7 @@ study is to see how much faster a problem of a fixed size can be solved by
 using more processors.  Speed up was used as a performance measure for the strong
 scaling study.   Speed up is defined as the ratio $T_{ser}/T_p$, where $T_{ser}$ is the time to solve the problem using the most
 efficient serial algorithm and $T_{p}$ is the time to solve the program using $p$
-processors. This is different than scalability,
-which is the ratio $T_{1}/T_{p}$, which can also be used as a performance measure for
-strong scaling.  A program which scales perfectly would show a linear, one-to-one
+processors.   A program which scales perfectly would show a linear, one-to-one
 speed up.  In general this is not the case due to communication and memory overhead.
 
 
@@ -544,12 +571,9 @@ and weak scaling studies, the simulations use a mesh of $248$ $x$ cells $\times$
 $\mu$ cells.  This mesh is chosen to have the tracking time of
 particles to be representative of a realistic problem, while still having simulation
 times that a single core can reasonably achieve. Also, this allows for the $128$ processor simulation to have at least one
-mesh cell per processor.  For the optically thick simulations, more histories per
+spatial element per processor.  For the optically thick simulations, more histories per
 processor are needed to increase simulation time because particle tracking takes much
 less time, per history, as discussed in the experimental setup.
-%For the last two studies, a smaller mesh of $100 x$ cells
-%$\times$ $6$ $\mu$ cells was used to limit simulation times because the scaling studies are only performed out
-%to 16 processors. 
 
 \subsection{Strong Scaling Study}
 
@@ -557,26 +581,26 @@ The results for the speed up study for the optically thin and thick problem are 
 in Fig.~\ref{thinsu} and Fig.~\ref{thicksu}. For the optically thin and thick
 problems $N=5\times10^6$ and $N=20\times10^6$ histories were performed in each
 simulation, respectively.  These were chosen to produce reasonable run times for the
-sequential and largest parallel simulations.  
+sequential and largest parallel simulations. 
 
-For the optically thin problem
-(as expected), but is able to solve the
-problem increasingly faster as the number of threads used is increased.  Some rough timing estimates indicate
-that the $O(p)$ calculation in the OpenMP algorithm is $<0.1$ \% of the total runtime
-(for 10$^9$ integers), which was on the order of 5 seconds.  Thus the limiting
-factor is likely the overhead of managing threads and memory access times.  
+For the optically thin problem, the domain copy algorithm demonstrates much better
+scaling than the decomposition algorithm, as expected.  After starting out at near linear scaling, the speedup begins
+to decline for the domain copy algorithm. This is a result of the all-reduce
+communication step becoming a more dominant contribution to the time, relative to
+the $O(N/p)$ history simulation time. As a rough measure of this cost, for the case
+of $p=64$, the communication time $T_c$ is $\sim 15\%$ of the total run time.  Thus,
+the complexity is more correctly represented as $O(N/p + T_c)$.  The domain decomposition algorithm scales poorly for the thin problem due to the large number
+of communication steps and the size of the particle banks communicated at each step.
 
-The algorithm described by Alg.~\ref{alg:openmp} had to be modified slightly to achieve
-the shown results (and all later OpenMP results).  It was modified to limit the cost
-of memory access times.  In the corrected algorithm, each
-thread was allowed to create its own memory within the
-\verb{omp parallel{ section (essentially emulating distributed memory), for storing the input and prefix sums. This was
-necessary to allow the program to correctly assign memory near the location of
-the cores.  This significantly improved
-the speedup, in particular going from 4 to 8 threads, which previously showed a drop
-in speedup.  This drop was the result of processors having to go off chip to access their
-portion of the array in RAM.  
-
+For the thick problem, at lower processor counts both algorithms show very good
+scaling. Because there is minimal particles to be communicated at boundaries, the domain decomposition
+algorithm becomes essentially embarrassingly parallel.  Both methods do not scale
+well above 32 processors. This poor scaling has to do with the fact that in optically
+thick problems the tracking of histories is relatively fast (even though there are
+$20\times 10^6/p$ histories to simulate).  Above 32 processors the dominant term in
+the simulations is the communication and MPI synchronization overhead as before.  For the case of 64 processors and
+the domain copy algorithm, the cost of communication is $\sim20 \%$ of the total
+simulation cost.
      \begin{figure}[htbp!]
          \begin{subfigure}{0.5\textwidth}
          \centering
@@ -589,7 +613,7 @@ portion of the array in RAM.
            \caption{Zoomed view}
      \end{subfigure}
            \caption{For the optically thin problem, a plot of speedup versus number of processors $p$ for $N=5\times
-               10^6$ histories.\label{thicksu}}
+               10^6$ histories.\label{thinsu}}
  \end{figure}
      \begin{figure}[htbp!]
          \begin{subfigure}{0.5\textwidth}
