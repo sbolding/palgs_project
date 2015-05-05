@@ -100,6 +100,7 @@ CSCE 626} %if necessary, replace with your course title
 	\item People in class - Daniel Holladay
 	\item wikipedia.org/wiki/Prefix\_sum,computing.llnl.gov, mpitutorial.com
     \item EOS website: sc.tamu.edu/systems/eos
+    \item Exploring Monte Carlo Methods, by Shultis and Faw, 2011
 \end{enumerate}
 
 \section{Introduction}
@@ -108,39 +109,38 @@ CSCE 626} %if necessary, replace with your course title
 
 In this work experimental analysis was performed to evaluate the performance
 of two different approaches to parallelizing a Monte Carlo particle transport code:
-domain copy and domain decomposition.  In domain copy each processor has a copy of
-the entire physical domain of the problem, as opposed to domain decomposition in
+domain copy and domain decomposition.  In a domain copy algorithm, each processor has a copy of
+the entire physical domain of the problem. This is opposed to domain decomposition in
 which each processor only contains a portion of the domain. Each has their own
 benefits and difficulties.  The algorithms were
-implemented in a simplified version of a research code that solves a 
-pure-absorber, one-dimensional Monte Carlo particle transport code.  The goal is to
+implemented in a simplified version of a research code that simulates pure-absorber,
+one-dimensional particle transport using the Monte Carlo method [Shultis and Faw,
+2011].  Speed up in the full code is not of particular interest to this project.  The goal is to
 explore the algorithms and have a working simplified model that can be used to test
-parallelization strategies in the future.  
+future algorithms.
 
 In general, domain copy is a much simpler and efficient parallelization strategy.  However, for
-very large problems, or in methods that require additional information to be stored
-or communicated more often, it can become unfeasible due to memory and communication
-restraints.  In particular, the full solution method the research code the algorithms
-were implemented in fits into this category. My research code uses fits in to
-this case. That is why it is of interest for me to explore and understand the basics
-of the domain decomposition strategy, which does not require tallied information to
-be communicated at the end of simulations, but does require more communication during
-the simulation.
+methods that require additional information to be stored
+and communicated more often, it can become unfeasible.  In particular, the full
+solution method used by this research code will require too much information to be
+communicated efficiently in higher spatial dimensions. Thus, it is of interest
+explore the basics of the domain decomposition strategy; it does not require tallied information to be communicated at the end of
+simulations, but it does require more communication during the simulation.
 
-
-The algorithms used in this work are described in detail.  Approximate, expected theoretical
-complexities are given and verified.
-Multiple experiments
-were performed, and the results were analyzed to compare the performance of the
-algorithms as a function of the number of parallel processors used,  Coefficients for the theoretical asymptotic time complexity were
-determined were applicable. Both strong and weak scaling studies were performed as well, and speed up
-studied as a function of the number of histories performed. The algorithms are benchmarked
-against the original sequential algorithm. As expected, the domain copy algorithm was
-significantly more efficient for this simple 1D problem, but the domain decomposition
-algorithm was able to be demonstrated.
+In this work, the two algorithms used are described in detail.  Expected theoretical
+complexities are discussed.
+Strong and weak scaling studies were performed to compare the performance of each of
+the algorithms.  The tests were performed for two problems which are representative
+of the range of potential problem types.  The algorithms are benchmarked
+against the original sequential algorithm. As expected, the domain copy algorithm
+showed good scalability for this simple 1D problem, but the domain decomposition
+algorithm showed good scaling in optically thick problems.
 
 \subsection{Monte Carlo Transport Basics}
 
+Monte Carlos solves particle transport problem by tracking random particle histories
+throughout a domain and estimating the particle density by tallying information. The
+average of all histories produces the expected value of the tally of interest.
 The original code was designed to simulate time-dependent, thermal radiative transfer
 problems using Residual Monte Carlo and a deterministic acceleration method.  
 The simplified version of the code only models the Monte Carlo portion of the code for
@@ -148,37 +148,41 @@ a single steady state solve.  It uses Monte Carlo to perform a single batch of
 histories to simulate a transport problem for a fixed distribution of source particles.  This simplification was necessary because the
 codes data structures were not built to be easily decomposed or communicated.  By
 simplifying the code, the algorithms could still be realistically tested, without the
-large unnecessary overhead of parallelizing the entire code.
+large unnecessary overhead of parallelizing the entire code. 
 
-The physical domain of the problem is represented with a uniform space-angle mesh: one
+The physical domain of the problem is represented with a uniform space-angle
+finite-element  mesh: one
 dimension representing location $x$ in 1D space and one dimension representing the
-angle, or direction, of particles $\mu$).  The mesh is broken up into elements (or cells).
+angle, or direction, of particles $\mu$.  The problem is broken up into space-angle
+elements (or cells) over which information is tallied.
 The only material property of interest is the removal cross section $\sigma$ which
-represents the average probability a particle interacts per differential unit length. For
+represents the average probability a particle interacts per differential unit length. Because of the formulation of the Residual Monte Carlo code, no
+scattering occurs in the Monte Carlo solver (this is representative of the real code).  Thus, particles that undergo interaction are simply absorbed, and
+thus removed from the simulation.  For
 all problems herein there is a single material cross section in the domain to
-simplify analysis. A mean free path $\lambda = 1/\sigma$ represents the average
-distance a particle travels before interacting.
+simplify analysis.  
 
 The solution of interest is the steady-state
 distribution of particles in the system. This distribution is represented by
 a cell-wise linear representation, in space and angle, of the particle density
 referred to as the
 \textbf{angular flux} $\psi(x,\mu)$. Each cell $i$ has a linear representation denoted as
-$\psi_i(x,\mu)$.  The union of all cells, with a proper
-spatial closure, results in a piece-wise continous representation of the solution.  The final result that is typically of interest
+$\psi_i(x,\mu)$.  The union of all elements, with a proper
+spatial closure, results in a piece-wise continuous representation of the solution.  The final result that is typically of interest
 is an angular integrated particle density, referred to as the \textbf{scalar flux} 
 $\phi(x)$. Tallies are used to estimate the representation of $\psi_i(x,\mu)$ in
-each cell.  These tallies estimate the zeroth and first moment, in space and angle,
-of $\psi(x,\mu)$ based on the density of particle pathlengths that traverse that cell
-over the entire simulation.
+each cell.  These tallies estimate the representation of $\psi$ based on the average
+density of particle pathlengths that traverse that cell over the entire simulation.
 
 To solve a problem, the
-scalar flux is determined based on an input source distribution of particles that is represented
-over the mesh by a linear distribution (in space and angle) over each element.  To determine
+scalar flux is determined based on an input source distribution of particles. The
+source is represented
+over the mesh with a cell-wise linear distribution that can be easily sampled.  To determine
 the scalar flux, the basic process defined in 
 Alg.~\ref{alg:serial} is performed.  
 \begin{algorithm}
-    \caption{\label{alg:serial}Serial algorithm for simulating Monte Carlo historie}
+    \caption{\label{alg:serial}Serial algorithm for solving a transport problem with
+    Monte Carlo.}
     \vspace{0.06in}
     \textbf{Input:} $N$ histories, mesh, source distribution
     \vspace{-0.1in}
@@ -203,12 +207,6 @@ Alg.~\ref{alg:serial} is performed.
 \vspace{-0.1in}
      \textbf{return} $\phi(x)$
 \end{algorithm}
-
-It is noted that the reason particles do not have to scatter is that a deterministic
-solver provides a representation of scattering events as a term included in the
-source distribution.  This determinstic solve
-is performed in simulations, but is not included in the timing of algorithms because it is
-performed before the Monte Carlo solve ever begins.
 
 \section{Algorithms and Theoretical Analysis}
 
@@ -252,7 +250,7 @@ per element. An \verb{MPI_Allreduce{ is performed to compute the sum of all resu
 
 As discussed for the serial algorithm, the dominating term in the simulation run time is
 performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing strategy
-    which will be $O(\log n_x)$, where $n_x$ is the number of cells in the problem.
+    which will be $O(\log n_x)$, where $n_x$ is the number of elements in the problem.
     This communication term is relatively small and a constant for a particular
     problem size. Thus $T(N) = O(N/p + \log n_x) = O(N/p)$.   At very large $p$ or a low number of $N$, this term could become
     more significant, but for realistic values of $N$ ($O(10^6)$), it is small. All processors are
@@ -306,7 +304,7 @@ performing the histories.  The \verb{MPI_Allreduce{ uses a parallel summing stra
 
 In the decomposed case, each processor owns a portion of the space-angle mesh. A
 uniform decomposition is performed based on spatial mesh. Thus each processor owns
-all of the angular cells, for some particular region of space $\{x:x_l<x<x_r\}$, where
+all of the angular element, for some particular region of space $\{x:x_l<x<x_r\}$, where
 $x_l$ is the left edge of the region and $x_r$ is the right edge of the region. he
 processors are organized in a linear array.   The mesh is
 divided so that boundaries of processor domains correspond with spatial element
@@ -405,8 +403,8 @@ outlined in Alg.~\ref{alg:dec}.
      \item Compute logical OR using \verb{MPI_Reduce{ on $done$'s, stored in $alldone$
     \end{enumerate}
     \item[] \textbf{end While} /* If all banks are empty, then we are done */
-    \item \textbf{For each of $P_j$'s cells:} average contribution of $N$ histories to all tallies
-    \item Compute $\phi(x)$ for all cells in $P_j$'s domain
+    \item \textbf{For each of $P_j$'s elements:} average contribution of $N$ histories to all tallies
+    \item Compute $\phi(x)$ for all elements in $P_j$'s domain
 \end{enumerate}
 /* Each processor now knows $\phi(x)$ for its domain */
 \end{algorithm}
@@ -471,7 +469,7 @@ processor boundary.  The specifics of the two problems are defined below:
 
 \subsection{Description of Experiments}
 
-Several experiments were performed to gauge the performance and scalability of the
+Two experiments were performed to gauge the performance and scalability of the
 two algorithms. The experiments are discussed individually below. Batch files to run the
 various jobs were created using a Python script.  Output files were processed with a
 Python script as well.  The
@@ -494,15 +492,6 @@ which is the ratio $T_{1}/T_{p}$, which can also be used as a performance measur
 strong scaling.  A program which scales perfectly would show a linear, one-to-one
 speed up.  In general this is not the case due to communication and memory overhead.
 
-For both the MPI and OpenMP algorithm, $10^9$ integers was chosen as the input
-problem size. The choice of this number was to ensure that the size of each portion of
-the input and prefix sum arrays stored by each processor was larger than the $L3$
-cache, for all simulations.  The size of the input array for $10^9$ integers is $4$ bytes/int
-$\times 10^9$ integers $=4$ GB.  The size of the output arrays, which use 8 byte
-longs, is $8\times 10^9$ GB. In total, around $12$ GB of memory is needed, which is well
-under the limit of $22$ GB per node.  The largest run of 256 cores still requires
-around $10$ MB per core, which is greater than the size of the L3 cache.
-
 
 \subsubsection{Weak Scaling Study}
 
@@ -515,55 +504,8 @@ serial algorithm, or even at lower core counts.  The metric for the weak scaling
 defined as Efficiency = $T_p(n)/T_1(n)\times 100\%$, noting that $T_1$ is the time for the parallel
 algorithm with one processor, not the time for the serial algorithm.  The ideal
 efficiency would be 100\%, resulting in a flat line for Efficiency as a function of
-$p$.  Decreases in efficiency likely indicate cost increase from overhead due to memory access or
-communication times.
-
-For the weak scaling studies, $10^8$ integers, per core, were used for both the MPI
-and OpenMP.  This number was chosen for the same reasons as in the strong scaling
-study: the value is larger than the cache size and the total problem size will fit in
-the available RAM per node.
-
-\subsubsection{Speedup Versus Problem Size}
-
-A study similar to strong scaling was performed, in which the problem size is varied,
-but the number of processors is fixed.  Thus, the interest is in whether the
-algorithm, for a particular $p$, behaves as expected when $n$ is increased.  This
-helps to validate our asymptotic analysis, and will determine if the $O(n/p)$ term is
-truly dominant as anticipated.  This study provides information similar to the strong and weak scaling studies, but
-should expose any scaling issues that are not necessarily related to communication,
-e.g., memory issues.
-It also provides a good overall indication of the algorithms' ability to solve
-problems of varying size more efficiently than the serial algorithm.
-
-For a couple different choices of $p$, the algorithms were tested on various problem
-sizes $n$. The run times of these simulations is then compared to the run times for
-the same test problems by the serial program.  
-
-\subsubsection{Determining Asymptotic Coefficients}
-
-To determine the validity of our theoretical analysis of the algorithms, simulations
-were performed for a fixed number of processors with variable input sizes.  This
-helps to determine if our theoretical model for run time, as a function of input
-size and number of processors, is sufficiently accurate to model the run time.  Our model does not account for
-communication latencies or memory access times.  This study also helps to determine in what
-range of problem sizes our asymptotic scalings are accurate.  
-
-The theoretical output time of the model is predicted as $T_{pred}$. In general,
-the model $T_{pred}$ is a function of the problem size $n$ and number of processors $p$.
-The model can be represented as $T_{pred} = C_0 g(n,p)$ for some $n>n_0$, where
-$g(n,p)$ is the expected time complexity determined by algorithmic analysis, for a given
-compute system.  By performing experiments for various $n$, given a fixed $p$, the
-coefficients of the model $C_0$ and $n_0$ can be determined by plotting the ratio of
-the actual experimental time $T_{exp}$ to predicted run times.  The point at which
-the plot levels off represents $n_0$, and the value of the ratio where it has leveled
-off approximates $C_0$.
-
-For both the OpenMP and MPI algorithm, the dominant term is expected to be $O(n/p)$.
-Rather than trying to fit a function to determine the other coefficients in the
-model (e.g., $C_0*n/p+C_1*p + C_2*\log p$), which would be difficult due to statistical noise in the results and the small
-contribution from the $O(p)$ terms, only the coefficients for the dominant $O(n/p)$
-term are determined.  
-
+$p$. For the Monte Carlo algorithms described, decreases in efficiency likely
+indicate cost increase from communication times, relative to transport time.
 
 \subsection{Statistics}
 
@@ -596,19 +538,28 @@ Gaussian distribution of the error, is plotted as $1.96 \sigma$.
 
 \section{Experimental Results and Analysis.}
 
-Below are given results and discussion for each of the experiments.  For the strong
+Below are given results and discussion for the two experiments. Only strong and weak
+scaling studies are performed for brevity.  For the strong
 and weak scaling studies, the simulations use a mesh of $248$ $x$ cells $\times$ $6$
 $\mu$ cells.  This mesh is chosen to have the tracking time of
 particles to be representative of a realistic problem, while still having simulation
 times that a single core can reasonably achieve. Also, this allows for the $128$ processor simulation to have at least one
-mesh cell per processor.  For the last two studies, a smaller mesh of $100 x$ cells
-$\times$ $6$ $\mu$ cells was used to limit simulation times because the scaling studies are only performed out
-to 16 processors. 
+mesh cell per processor.  For the optically thick simulations, more histories per
+processor are needed to increase simulation time because particle tracking takes much
+less time, per history, as discussed in the experimental setup.
+%For the last two studies, a smaller mesh of $100 x$ cells
+%$\times$ $6$ $\mu$ cells was used to limit simulation times because the scaling studies are only performed out
+%to 16 processors. 
 
 \subsection{Strong Scaling Study}
 
 The results for the speed up study for the optically thin and thick problem are given
-in Fig.~\ref{thinsu} and Fig.~\ref{thicksu}. As demonstrated, the algorithm does not demonstrate ideal speedup
+in Fig.~\ref{thinsu} and Fig.~\ref{thicksu}. For the optically thin and thick
+problems $N=5\times10^6$ and $N=20\times10^6$ histories were performed in each
+simulation, respectively.  These were chosen to produce reasonable run times for the
+sequential and largest parallel simulations.  
+
+For the optically thin problem
 (as expected), but is able to solve the
 problem increasingly faster as the number of threads used is increased.  Some rough timing estimates indicate
 that the $O(p)$ calculation in the OpenMP algorithm is $<0.1$ \% of the total runtime
@@ -626,28 +577,6 @@ the speedup, in particular going from 4 to 8 threads, which previously showed a 
 in speedup.  This drop was the result of processors having to go off chip to access their
 portion of the array in RAM.  
 
-
-
-
-
-
-
-
-
-     \begin{figure}[htbp!]
-         \begin{subfigure}{0.5\textwidth}
-         \centering
-           \includegraphics[width=1.08\textwidth]{speedup_thick.pdf}
-           \caption{Strong scaling to 128 processors.}
-     \end{subfigure}
-     \begin{subfigure}{0.5\textwidth}
-         \centering
-           \includegraphics[width=1.08\textwidth]{speedup_zoom_thick.pdf}
-           \caption{Zoomed view}
-     \end{subfigure}
-     \caption{For the optically \emph{thick} problem, a plot of speedup versus number of processors $p$ for $N=5\times
-               10^6$ histories.\label{thicksu}}
- \end{figure}
      \begin{figure}[htbp!]
          \begin{subfigure}{0.5\textwidth}
          \centering
@@ -662,7 +591,20 @@ portion of the array in RAM.
            \caption{For the optically thin problem, a plot of speedup versus number of processors $p$ for $N=5\times
                10^6$ histories.\label{thicksu}}
  \end{figure}
-
+     \begin{figure}[htbp!]
+         \begin{subfigure}{0.5\textwidth}
+         \centering
+           \includegraphics[width=1.08\textwidth]{speedup_thick.pdf}
+           \caption{Strong scaling to 128 processors.}
+     \end{subfigure}
+     \begin{subfigure}{0.5\textwidth}
+         \centering
+           \includegraphics[width=1.08\textwidth]{speedup_zoom_thick.pdf}
+           \caption{Zoomed view}
+     \end{subfigure}
+     \caption{For the optically \emph{thick} problem, a plot of speedup versus number
+            of processors $p$ for $N=20\times 10^6$ histories.\label{thicksu}} \end{figure}
+  
 \clearpage
 
 \subsection{Weak Scaling Study}
@@ -684,21 +626,16 @@ to additional parallel communication costs.
 
      \begin{figure}[htbp!]
          \centering
-           %\includegraphics[width=0.75\textwidth]{openmp_weak.pdf}
-           \caption{Plot of weak scaling efficiency versus $p$ for OpenMP algorithm,
-               for $10^8$ integers per processor.\label{ompw}}
+           \includegraphics[width=0.7\textwidth]{weak_thin.pdf}
+           \caption{Weak scaling study for optically thin problem with $N=250,000$ histories per processor
+           \label{weak1}}
      \end{figure}
-\begin{figure}[htbp!]
-           \centering
-           %\includegraphics[width=0.75\textwidth]{mpi_weak.pdf}
-           \caption{Plot of weak scaling efficiency versus $p$ for MPI algorithm, for $10^8$ integers
-               per processor.\label{mpiw}}
-     \end{figure}
-\begin{figure}[htbp!]
-           \centering
-           %\includegraphics[width=0.75\textwidth]{mpi_weak_small.pdf}
-           \caption{Zoomed in plot of weak scaling for MPI
-           algorithm, for $10^8$ integers per processor.\label{mpizoomw}}
+     \begin{figure}[htbp!]
+         \centering
+           \includegraphics[width=0.7\textwidth]{weak_thick.pdf}
+           \caption{Weak scaling study for optically thick problem with
+               $N=2\times 10^6$ histories per processor
+           \label{weak2}}
      \end{figure}
 \clearpage
 \subsection{Computational time versus problem size}
@@ -875,12 +812,12 @@ communication, per $p$, is negligible.  Although the OpenMP algorithm has a
 similar overhead due to the cost of managing threads, it is not quite as large. 
 
 
-BETTER TO HAVE EDGE PROCESSORS OWN MORE DOMAIN
+A couple strategies could be used.
 
-For the thin problem, probability of going whole way is 0.41
 
-WEAK HAS 2 million per cor or 250k per core
-Thick strong has 20 mill tots
+ASYNCHRONOUSE WOULD BE BETTER. A simple setup to play around with 1D parallelized
+code. It can be used in the future to test other algorithmic technqiues without the
+overhead of a full MOnte Carlo code.  T
 
 \end{document}
 
